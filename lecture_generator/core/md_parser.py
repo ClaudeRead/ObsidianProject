@@ -6,6 +6,7 @@ Markdown解析模块
 
 import hashlib
 import re
+from urllib.parse import quote
 from pathlib import Path
 from typing import Dict, Optional
 
@@ -73,6 +74,9 @@ class MarkdownParser:
     def _clean_content(self, content: str, filename: str) -> str:
         cleaned = content
 
+        cleaned = self._rewrite_obsidian_images(cleaned)
+        cleaned = self._rewrite_markdown_images(cleaned)
+
         internal_link_pattern = re.compile(r'(?<!\!)\[\[([^\]]+?\.md)(?:#([^\]]+))?(?:\|([^\]]+))?\]\]')
 
         def replace_internal_link(match):
@@ -111,6 +115,39 @@ class MarkdownParser:
         cleaned = re.sub(r'\n+$', '\n', cleaned)
 
         return cleaned
+
+    def _normalize_image_path(self, image_path: str) -> str:
+        normalized = image_path.replace('\\', '/').lstrip('./')
+        normalized = normalized.lstrip('/')
+        return normalized
+
+    def _image_url(self, image_path: str) -> str:
+        normalized = self._normalize_image_path(image_path)
+        return f'/api/image/{quote(normalized, safe="/")}'
+
+    def _rewrite_obsidian_images(self, content: str) -> str:
+        pattern = re.compile(r'!\[\[([^\]|]+)(?:\|([^\]]+))?\]\]')
+
+        def replace_image(match):
+            path = match.group(1).strip()
+            alt = match.group(2) or Path(path).stem
+            return f'![{alt}]({self._image_url(path)})'
+
+        return pattern.sub(replace_image, content)
+
+    def _rewrite_markdown_images(self, content: str) -> str:
+        pattern = re.compile(r'!\[([^\]]*)\]\(([^)]+)\)')
+
+        def replace_image(match):
+            alt_text = match.group(1)
+            url = match.group(2).strip()
+
+            if re.match(r'^[a-zA-Z]+:', url) or url.startswith('/'):
+                return match.group(0)
+
+            return f'![{alt_text}]({self._image_url(url)})'
+
+        return pattern.sub(replace_image, content)
 
     def _remove_section(self, content: str, section_marker: str) -> str:
         pattern = re.compile(rf'{re.escape(section_marker)}.*?(?=\n【|$)', re.DOTALL)

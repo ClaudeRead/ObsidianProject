@@ -34,6 +34,10 @@ class LectureGeneratorApp {
             selectedCount: document.getElementById('selected-count'),
             formatPill: document.getElementById('format-pill'),
 
+            searchInput: document.getElementById('search-input'),
+            searchType: document.getElementById('search-type'),
+            searchBtn: document.getElementById('search-btn'),
+
             // 操作按钮
             refreshBtn: document.getElementById('refresh-btn'),
             collapseAllBtn: document.getElementById('collapse-all-btn'),
@@ -97,6 +101,11 @@ class LectureGeneratorApp {
         this.elements.expandAllBtn.addEventListener('click', () => this.expandAll());
         this.elements.clearSelectedBtn.addEventListener('click', () => this.clearSelected());
         this.elements.sortSelectedBtn.addEventListener('click', () => this.sortSelected());
+
+        this.elements.searchBtn.addEventListener('click', () => this.searchFiles());
+        this.elements.searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') this.searchFiles();
+        });
 
         // 路径选择功能
         this.elements.selectPathBtn.addEventListener('click', () => this.showPathSelector());
@@ -215,6 +224,98 @@ class LectureGeneratorApp {
         } finally {
             this.hideLoading();
         }
+    }
+
+    async searchFiles() {
+        const keyword = this.elements.searchInput.value.trim();
+        const searchType = this.elements.searchType.value;
+
+        if (!keyword) {
+            this.renderDirectoryTree();
+            return;
+        }
+
+        this.showLoading(`正在搜索：${keyword}`);
+
+        try {
+            const response = await fetch('/api/search', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ keyword, type: searchType })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                this.displaySearchResults(data.results, keyword);
+            } else {
+                this.showMessage(`搜索失败：${data.error}`, 'error');
+            }
+        } catch (error) {
+            console.error('搜索失败:', error);
+            this.showMessage('搜索失败，请检查网络连接', 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    displaySearchResults(results, keyword) {
+        const treeContainer = this.elements.fileTree;
+
+        if (!results || results.length === 0) {
+            treeContainer.innerHTML = '<p class="empty-message">未找到匹配的文件</p>';
+            return;
+        }
+
+        const searchResultsHTML = results.map(result => {
+            const pathParts = result.path.split('/');
+            const fileName = pathParts.pop();
+            const isSelected = this.isSelected(result.path);
+
+            return `
+                <div class="file-item" data-path="${result.path}">
+                    <input type="checkbox" class="file-checkbox" ${isSelected ? 'checked' : ''}>
+                    <i class="fas fa-file-alt"></i>
+                    <span class="file-name">${fileName}</span>
+                    <span class="file-path">${pathParts.join('/')}</span>
+                </div>
+            `;
+        }).join('');
+
+        treeContainer.innerHTML = `
+            <div class="search-results">
+                <div class="search-header">
+                    <h4>搜索结果："${keyword}" (${results.length})</h4>
+                    <button class="btn btn-secondary btn-small" id="back-to-tree">返回</button>
+                </div>
+                <div class="results-list">
+                    ${searchResultsHTML}
+                </div>
+            </div>
+        `;
+
+        document.getElementById('back-to-tree').addEventListener('click', () => {
+            this.renderDirectoryTree();
+        });
+
+        document.querySelectorAll('.search-results .file-item').forEach(item => {
+            const filePath = item.dataset.path;
+            const fileName = item.querySelector('.file-name').textContent;
+            const checkbox = item.querySelector('.file-checkbox');
+
+            item.addEventListener('click', (e) => {
+                if (e.target !== checkbox && !checkbox.contains(e.target)) {
+                    checkbox.checked = !checkbox.checked;
+                    this.toggleFileSelection(filePath, fileName, checkbox.checked);
+                }
+            });
+
+            checkbox.addEventListener('change', () => {
+                this.toggleFileSelection(filePath, fileName, checkbox.checked);
+            });
+        });
     }
 
     /**

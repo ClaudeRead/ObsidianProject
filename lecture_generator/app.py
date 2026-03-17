@@ -65,6 +65,73 @@ def get_directory():
             'error': str(e)
         }), 500
 
+@app.route('/api/search', methods=['POST'])
+def search_files():
+    """搜索文件名或内容"""
+    data = request.json or {}
+    keyword = (data.get('keyword') or '').strip()
+    search_type = data.get('type', 'filename')
+
+    if not keyword:
+        return jsonify({'success': True, 'results': [], 'count': 0})
+
+    config = get_config()
+    obsidian_path = config.get('obsidian_repo')
+    extensions = config.get('markdown_extensions', ['.md', '.markdown'])
+
+    if not obsidian_path or not os.path.exists(obsidian_path):
+        return jsonify({'success': False, 'error': '仓库路径不存在'}), 404
+
+    keyword_lower = keyword.lower()
+    results = []
+
+    for root, _, files in os.walk(obsidian_path):
+        for filename in files:
+            if not any(filename.lower().endswith(ext) for ext in extensions):
+                continue
+
+            full_path = os.path.join(root, filename)
+            rel_path = os.path.relpath(full_path, obsidian_path).replace('\\', '/')
+
+            if search_type == 'filename':
+                if keyword_lower in filename.lower():
+                    results.append({'path': rel_path})
+                continue
+
+            try:
+                with open(full_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    content = f.read()
+                if keyword_lower in content.lower():
+                    results.append({'path': rel_path})
+            except Exception:
+                continue
+
+    return jsonify({'success': True, 'results': results, 'count': len(results)})
+
+@app.route('/api/image/<path:relative_path>', methods=['GET'])
+def get_image(relative_path):
+    """提供Obsidian仓库内图片访问"""
+    config = get_config()
+    obsidian_path = config.get('obsidian_repo')
+
+    if not obsidian_path:
+        abort(404, description="图片不存在")
+
+    base_path = os.path.abspath(obsidian_path)
+    target_path = os.path.abspath(os.path.join(obsidian_path, relative_path))
+
+    if not (target_path == base_path or target_path.startswith(base_path + os.sep)):
+        abort(403, description="访问被拒绝")
+
+    if not os.path.isfile(target_path):
+        abort(404, description="图片不存在")
+
+    allowed_exts = {'.png', '.jpg', '.jpeg', '.gif', '.bmp', '.svg', '.webp', '.tiff'}
+    if os.path.splitext(target_path)[1].lower() not in allowed_exts:
+        abort(403, description="不支持的文件类型")
+
+    return send_file(target_path)
+
 def _scan_directory(current_path, relative_path, structure, config):
     """递归扫描目录"""
     try:

@@ -44,6 +44,17 @@
                     </div>
                 </div>
 
+                <div class="search-box">
+                    <input type="text" id="search-input" class="search-input" placeholder="搜索文件名或内容...">
+                    <select id="search-type" class="search-type">
+                        <option value="filename">文件名</option>
+                        <option value="content">内容</option>
+                    </select>
+                    <button class="btn btn-primary btn-small" id="search-btn">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+
                 <!-- 文件树容器 -->
                 <div class="file-tree-container">
                     <div id="file-tree" class="file-tree">
