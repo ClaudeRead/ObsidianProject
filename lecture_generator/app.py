@@ -141,6 +141,8 @@ def _scan_directory(current_path, relative_path, structure, config):
         return
 
     for item in items:
+        if item.lower() == 'image':
+            continue
         item_path = os.path.join(current_path, item)
         relative_item_path = os.path.join(relative_path, item) if relative_path else item
 
@@ -246,6 +248,36 @@ def _convert_markdown_to_html(markdown_content):
         md = markdown.Markdown(extensions=['extra', 'codehilite', 'toc'])
         html_content = md.convert(markdown_content)
 
+        # 处理图片路径，确保在生成的HTML中也能正确显示
+        import re
+        from urllib.parse import unquote
+        config = get_config()
+        obsidian_path = config.get('obsidian_repo')
+
+        def to_file_url(src):
+            if not src.startswith('/api/image/'):
+                return None
+            image_path = unquote(src.replace('/api/image/', '', 1))
+            full_path = os.path.join(obsidian_path, image_path)
+            return f'file://{full_path.replace("\\", "/")}'
+
+        def replace_img_tag(match):
+            src = match.group(1)
+            file_url = to_file_url(src)
+            if not file_url:
+                return match.group(0)
+            return match.group(0).replace(src, file_url)
+
+        def replace_markdown_image(match):
+            alt = match.group(1)
+            src = match.group(2)
+            return f'<img src="{to_file_url(src) or src}" alt="{alt}">'
+
+        # 处理img标签（兼容属性顺序）
+        html_content = re.sub(r'<img[^>]*\bsrc="([^"]+)"[^>]*>', replace_img_tag, html_content)
+        # 处理Markdown格式的图片（兜底）
+        html_content = re.sub(r'!\[([^\]]*)\]\(([^)]+)\)', replace_markdown_image, html_content)
+
         # 包装成完整HTML文档
         html_template = f'''<!DOCTYPE html>
 <html lang="zh-CN">
@@ -282,6 +314,7 @@ def _convert_markdown_to_html(markdown_content):
         .section {{ margin-bottom: 40px; }}
         .section-header {{ background: #f0f7ff; padding: 10px 15px; border-left: 4px solid #3498db; margin-bottom: 15px; }}
         .highlight {{ background-color: #fffacd; padding: 2px 4px; }}
+        img {{ max-width: 100%; height: auto; margin: 1em 0; border-radius: 5px; }}
     </style>
 </head>
 <body>
@@ -308,6 +341,26 @@ def _convert_markdown_to_html(markdown_content):
 
         # 转换代码
         html = re.sub(r'`(.+?)`', r'<code>\1</code>', html)
+
+        # 处理图片路径
+        from urllib.parse import unquote
+        config = get_config()
+        obsidian_path = config.get('obsidian_repo')
+
+        def to_file_url(src):
+            if not src.startswith('/api/image/'):
+                return None
+            image_path = unquote(src.replace('/api/image/', '', 1))
+            full_path = os.path.join(obsidian_path, image_path)
+            return f'file://{full_path.replace("\\", "/")}'
+
+        def replace_image_path(match):
+            alt = match.group(1)
+            src = match.group(2)
+            return f'<img src="{to_file_url(src) or src}" alt="{alt}">'
+
+        # 转换图片
+        html = re.sub(r'!\[([^\]]+)\]\(([^)]+)\)', replace_image_path, html)
 
         # 转换链接
         html = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'<a href="\2">\1</a>', html)
@@ -359,6 +412,7 @@ def _convert_markdown_to_html(markdown_content):
         p {{ margin: 1em 0; }}
         ul {{ padding-left: 2em; }}
         code {{ background: #f5f5f5; padding: 2px 4px; border-radius: 3px; }}
+        img {{ max-width: 100%; height: auto; margin: 1em 0; border-radius: 5px; }}
     </style>
 </head>
 <body>
