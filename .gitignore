@@ -8,3 +8,24 @@
 
 # Shell脚本强制 LF
 *.sh eol=lf
+
+# Python
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+
+# IDE
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude / AI 工具
+.claude/
+
+# 日志
+logs/
+*.log

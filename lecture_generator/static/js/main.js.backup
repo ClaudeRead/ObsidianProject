@@ -4,23 +4,15 @@
 
 class LectureGeneratorApp {
     constructor() {
-        this.selectedFiles = [];
+        this.selectedFiles = new Set();
         this.directoryStructure = null;
         this.isLoading = false;
-        this.previewTimer = null;
-        this.generateOptions = {
-            showAnalysis: true,
-            showNotes: true,
-            includeToc: true,
-            format: 'html',
-            filename: ''
-        };
 
         // 初始化
         this.initElements();
         this.bindEvents();
         this.loadDirectory();
-        this.updateStatusPills();
+        this.updateInfoPanel();
     }
 
     /**
@@ -33,7 +25,7 @@ class LectureGeneratorApp {
             fileTree: document.getElementById('file-tree'),
             selectedList: document.getElementById('selected-list'),
             selectedCount: document.getElementById('selected-count'),
-            formatPill: document.getElementById('format-pill'),
+            infoSelectedCount: document.getElementById('info-selected-count'),
 
             // 搜索相关
             searchInput: document.getElementById('search-input'),
@@ -45,12 +37,24 @@ class LectureGeneratorApp {
             collapseAllBtn: document.getElementById('collapse-all-btn'),
             expandAllBtn: document.getElementById('expand-all-btn'),
             clearSelectedBtn: document.getElementById('clear-selected'),
-            sortSelectedBtn: document.getElementById('sort-selected'),
+
+            // 配置选项
+            showAnalysis: document.getElementById('show-analysis'),
+            showNotes: document.getElementById('show-notes'),
+            includeToc: document.getElementById('include-toc'),
+            formatRadios: document.querySelectorAll('input[name="format"]'),
 
             // 预览相关
+            previewBtn: document.getElementById('preview-btn'),
+            generateBtn: document.getElementById('generate-btn'),
             copyPreviewBtn: document.getElementById('copy-preview'),
             clearPreviewBtn: document.getElementById('clear-preview'),
             previewContent: document.getElementById('preview-content'),
+
+            // 信息面板
+            obsidianPath: document.getElementById('obsidian-path'),
+            infoDisplayOptions: document.getElementById('info-display-options'),
+            infoFormat: document.getElementById('info-format'),
 
             // 路径选择相关
             currentPath: document.getElementById('current-path'),
@@ -78,18 +82,7 @@ class LectureGeneratorApp {
             downloadFilename: document.getElementById('download-filename'),
             downloadFilecount: document.getElementById('download-filecount'),
             downloadBtn: document.getElementById('download-btn'),
-            closeModalBtn: document.getElementById('close-modal'),
-
-            // 生成选项对话框
-            openGenerateModalBtn: document.getElementById('open-generate-modal'),
-            generateModal: document.getElementById('generate-modal'),
-            modalShowAnalysis: document.getElementById('modal-show-analysis'),
-            modalShowNotes: document.getElementById('modal-show-notes'),
-            modalIncludeToc: document.getElementById('modal-include-toc'),
-            modalFormat: document.getElementById('modal-format'),
-            modalFilename: document.getElementById('modal-filename'),
-            cancelGenerateBtn: document.getElementById('cancel-generate'),
-            confirmGenerateBtn: document.getElementById('confirm-generate')
+            closeModalBtn: document.getElementById('close-modal')
         };
     }
 
@@ -108,7 +101,6 @@ class LectureGeneratorApp {
         this.elements.collapseAllBtn.addEventListener('click', () => this.collapseAll());
         this.elements.expandAllBtn.addEventListener('click', () => this.expandAll());
         this.elements.clearSelectedBtn.addEventListener('click', () => this.clearSelected());
-        this.elements.sortSelectedBtn.addEventListener('click', () => this.sortSelected());
 
         // 路径选择功能
         this.elements.selectPathBtn.addEventListener('click', () => this.showPathSelector());
@@ -119,10 +111,17 @@ class LectureGeneratorApp {
         // 路径输入验证
         this.elements.pathInput.addEventListener('input', () => this.validatePathInput());
 
-        // 生成选项对话框
-        this.elements.openGenerateModalBtn.addEventListener('click', () => this.showGenerateModal());
-        this.elements.cancelGenerateBtn.addEventListener('click', () => this.hideGenerateModal());
-        this.elements.confirmGenerateBtn.addEventListener('click', () => this.confirmGenerate());
+        // 配置选项变化
+        this.elements.showAnalysis.addEventListener('change', () => this.updateInfoPanel());
+        this.elements.showNotes.addEventListener('change', () => this.updateInfoPanel());
+        this.elements.includeToc.addEventListener('change', () => this.updateInfoPanel());
+        this.elements.formatRadios.forEach(radio => {
+            radio.addEventListener('change', () => this.updateInfoPanel());
+        });
+
+        // 预览和生成功能
+        this.elements.previewBtn.addEventListener('click', () => this.previewLecture());
+        this.elements.generateBtn.addEventListener('click', () => this.generateLecture());
         this.elements.copyPreviewBtn.addEventListener('click', () => this.copyPreview());
         this.elements.clearPreviewBtn.addEventListener('click', () => this.clearPreview());
 
@@ -137,17 +136,10 @@ class LectureGeneratorApp {
             }
         });
 
-        this.elements.generateModal.addEventListener('click', (e) => {
-            if (e.target === this.elements.generateModal) {
-                this.hideGenerateModal();
-            }
-        });
-
         // ESC键关闭模态框
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 this.hideModal();
-                this.hideGenerateModal();
             }
         });
     }
@@ -205,9 +197,23 @@ class LectureGeneratorApp {
     /**
      * 更新信息面板
      */
-    updateStatusPills() {
-        this.elements.selectedCount.textContent = this.selectedFiles.length;
-        this.elements.formatPill.textContent = this.generateOptions.format.toUpperCase();
+    updateInfoPanel() {
+        const showAnalysis = this.elements.showAnalysis.checked;
+        const showNotes = this.elements.showNotes.checked;
+        const includeToc = this.elements.includeToc.checked;
+
+        // 获取选中的格式
+        let selectedFormat = 'HTML';
+        this.elements.formatRadios.forEach(radio => {
+            if (radio.checked) {
+                selectedFormat = radio.value.toUpperCase();
+            }
+        });
+
+        this.elements.infoSelectedCount.textContent = this.selectedFiles.size;
+        this.elements.infoDisplayOptions.textContent =
+            `解析: ${showAnalysis ? '是' : '否'}, 注意: ${showNotes ? '是' : '否'}`;
+        this.elements.infoFormat.textContent = selectedFormat;
     }
 
     /**
@@ -224,6 +230,7 @@ class LectureGeneratorApp {
                 this.directoryStructure = data.structure;
                 this.renderDirectoryTree();
                 this.updateFileCount(data.structure);
+                this.elements.obsidianPath.textContent = data.obsidian_path;
                 this.showMessage('目录加载成功', 'success');
             } else {
                 this.showMessage(`加载失败: ${data.error}`, 'error');
@@ -307,7 +314,7 @@ class LectureGeneratorApp {
                 }
 
             } else if (item.type === 'file') {
-                const isSelected = this.isSelected(item.path);
+                const isSelected = this.selectedFiles.has(item.path);
                 div.innerHTML = `
                     <div class="file-item" data-path="${item.path}">
                         <input type="checkbox" class="file-checkbox" ${isSelected ? 'checked' : ''}>
@@ -352,16 +359,15 @@ class LectureGeneratorApp {
      */
     toggleFileSelection(filePath, fileName, isSelected) {
         if (isSelected) {
-            if (!this.isSelected(filePath)) {
-                this.selectedFiles.push({ path: filePath, name: fileName });
-            }
+            this.selectedFiles.add(filePath);
+            this.addToSelectedList(filePath, fileName);
         } else {
-            this.selectedFiles = this.selectedFiles.filter(item => item.path !== filePath);
+            this.selectedFiles.delete(filePath);
+            this.removeFromSelectedList(filePath);
         }
 
-        this.renderSelectedList();
-        this.updateStatusPills();
-        this.schedulePreview();
+        this.updateSelectedCount();
+        this.updateInfoPanel();
     }
 
     /**
@@ -369,121 +375,67 @@ class LectureGeneratorApp {
      * @param {string} filePath - 文件路径
      * @param {string} fileName - 文件名
      */
-    renderSelectedList() {
+    addToSelectedList(filePath, fileName) {
         const selectedList = this.elements.selectedList;
-        selectedList.innerHTML = '';
 
-        if (this.selectedFiles.length === 0) {
+        // 移除空消息
+        const emptyMessage = selectedList.querySelector('.empty-message');
+        if (emptyMessage) {
+            emptyMessage.remove();
+        }
+
+        // 检查是否已存在
+        const existingItem = selectedList.querySelector(`[data-path="${filePath}"]`);
+        if (existingItem) return;
+
+        const item = document.createElement('div');
+        item.className = 'selected-item';
+        item.dataset.path = filePath;
+        item.innerHTML = `
+            <span>${fileName}</span>
+            <i class="fas fa-times" title="移除"></i>
+        `;
+
+        // 绑定移除事件
+        const removeBtn = item.querySelector('.fa-times');
+        removeBtn.addEventListener('click', () => {
+            this.toggleFileSelection(filePath, fileName, false);
+            // 更新文件树中的复选框状态
+            const fileCheckbox = document.querySelector(`.file-item[data-path="${filePath}"] .file-checkbox`);
+            if (fileCheckbox) {
+                fileCheckbox.checked = false;
+            }
+        });
+
+        selectedList.appendChild(item);
+    }
+
+    /**
+     * 从已选择列表移除
+     * @param {string} filePath - 文件路径
+     */
+    removeFromSelectedList(filePath) {
+        const item = this.elements.selectedList.querySelector(`[data-path="${filePath}"]`);
+        if (item) {
+            item.remove();
+        }
+
+        // 如果列表为空，显示空消息
+        if (this.selectedFiles.size === 0) {
             const emptyMessage = document.createElement('p');
             emptyMessage.className = 'empty-message';
             emptyMessage.textContent = '暂无选择的文件';
-            selectedList.appendChild(emptyMessage);
-            return;
+            this.elements.selectedList.appendChild(emptyMessage);
         }
-
-        this.selectedFiles.forEach((item, index) => {
-            const row = document.createElement('div');
-            row.className = 'selected-item';
-            row.dataset.path = item.path;
-            row.innerHTML = `
-                <span>${item.name}</span>
-                <div class="order-controls">
-                    <button class="order-btn" data-action="up" title="上移">▲</button>
-                    <button class="order-btn" data-action="down" title="下移">▼</button>
-                    <button class="order-btn" data-action="remove" title="移除">✕</button>
-                </div>
-            `;
-
-            row.querySelectorAll('.order-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const action = btn.dataset.action;
-                    if (action === 'up') {
-                        this.moveSelectedItem(index, index - 1);
-                    } else if (action === 'down') {
-                        this.moveSelectedItem(index, index + 1);
-                    } else {
-                        this.removeSelectedItem(item.path);
-                    }
-                });
-            });
-
-            selectedList.appendChild(row);
-        });
     }
 
-    isSelected(filePath) {
-        return this.selectedFiles.some(item => item.path === filePath);
-    }
-
-    moveSelectedItem(fromIndex, toIndex) {
-        if (toIndex < 0 || toIndex >= this.selectedFiles.length) {
-            return;
-        }
-
-        const updated = [...this.selectedFiles];
-        const [moved] = updated.splice(fromIndex, 1);
-        updated.splice(toIndex, 0, moved);
-        this.selectedFiles = updated;
-        this.renderSelectedList();
-        this.schedulePreview();
-    }
-
-    removeSelectedItem(filePath) {
-        this.selectedFiles = this.selectedFiles.filter(item => item.path !== filePath);
-        const fileCheckbox = document.querySelector(`.file-item[data-path="${filePath}"] .file-checkbox`);
-        if (fileCheckbox) {
-            fileCheckbox.checked = false;
-        }
-        this.renderSelectedList();
-        this.updateStatusPills();
-        this.schedulePreview();
-    }
-
-    sortSelected() {
-        this.selectedFiles = [...this.selectedFiles].sort((a, b) => a.name.localeCompare(b.name));
-        this.renderSelectedList();
-        this.schedulePreview();
-    }
-
-    schedulePreview() {
-        if (this.previewTimer) {
-            clearTimeout(this.previewTimer);
-        }
-
-        if (this.selectedFiles.length === 0) {
-            this.clearPreview();
-            return;
-        }
-
-        this.previewTimer = setTimeout(() => {
-            this.previewLecture(true);
-        }, 500);
-    }
-
-    showGenerateModal() {
-        this.elements.modalShowAnalysis.checked = this.generateOptions.showAnalysis;
-        this.elements.modalShowNotes.checked = this.generateOptions.showNotes;
-        this.elements.modalIncludeToc.checked = this.generateOptions.includeToc;
-        this.elements.modalFormat.value = this.generateOptions.format;
-        this.elements.modalFilename.value = this.generateOptions.filename || '';
-        this.elements.generateModal.style.display = 'flex';
-    }
-
-    hideGenerateModal() {
-        this.elements.generateModal.style.display = 'none';
-    }
-
-    confirmGenerate() {
-        this.generateOptions = {
-            showAnalysis: this.elements.modalShowAnalysis.checked,
-            showNotes: this.elements.modalShowNotes.checked,
-            includeToc: this.elements.modalIncludeToc.checked,
-            format: this.elements.modalFormat.value,
-            filename: this.elements.modalFilename.value.trim()
-        };
-        this.updateStatusPills();
-        this.hideGenerateModal();
-        this.generateLecture();
+    /**
+     * 更新已选择计数
+     */
+    updateSelectedCount() {
+        const count = this.selectedFiles.size;
+        this.elements.selectedCount.textContent = count;
+        this.elements.infoSelectedCount.textContent = count;
     }
 
     /**
@@ -496,13 +448,18 @@ class LectureGeneratorApp {
         });
 
         // 清空选择集和列表
-        this.selectedFiles = [];
-        this.renderSelectedList();
-        this.updateStatusPills();
-        this.clearPreview();
+        this.selectedFiles.clear();
+        this.elements.selectedList.innerHTML = '<p class="empty-message">暂无选择的文件</p>';
+        this.updateSelectedCount();
+        this.updateInfoPanel();
 
         this.showMessage('已清空所有选择', 'success');
     }
+
+    /**
+     * 搜索文件
+     */
+    async searchFiles() {
 
     /**
      * 搜索文件
@@ -560,7 +517,7 @@ class LectureGeneratorApp {
         const searchResultsHTML = results.map(result => {
             const pathParts = result.path.split('/');
             const fileName = pathParts.pop();
-            const isSelected = this.isSelected(result.path);
+            const isSelected = this.selectedFiles.has(result.path);
 
             return `
                 <div class="tree-item">
@@ -615,9 +572,9 @@ class LectureGeneratorApp {
     /**
      * 预览讲义
      */
-    async previewLecture(silent = false) {
-        if (this.selectedFiles.length === 0) {
-            this.clearPreview();
+    async previewLecture() {
+        if (this.selectedFiles.size === 0) {
+            this.showMessage('请先选择要生成讲义的文件', 'warning');
             return;
         }
 
@@ -630,9 +587,9 @@ class LectureGeneratorApp {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    file_paths: this.selectedFiles.map(item => item.path),
-                    show_analysis: this.generateOptions.showAnalysis,
-                    show_notes: this.generateOptions.showNotes
+                    file_paths: Array.from(this.selectedFiles),
+                    show_analysis: this.elements.showAnalysis.checked,
+                    show_notes: this.elements.showNotes.checked
                 })
             });
 
@@ -640,9 +597,7 @@ class LectureGeneratorApp {
 
             if (data.success) {
                 this.displayPreview(data.preview);
-                if (!silent) {
-                    this.showMessage(`预览更新成功，包含 ${data.file_count} 个文件`, 'success');
-                }
+                this.showMessage(`预览生成成功，包含 ${data.file_count} 个文件`, 'success');
             } else {
                 this.showMessage(`预览失败: ${data.error}`, 'error');
             }
@@ -708,7 +663,7 @@ class LectureGeneratorApp {
      * 生成讲义
      */
     async generateLecture() {
-        if (this.selectedFiles.length === 0) {
+        if (this.selectedFiles.size === 0) {
             this.showMessage('请先选择要生成讲义的文件', 'warning');
             return;
         }
@@ -716,18 +671,25 @@ class LectureGeneratorApp {
         this.showLoading('正在生成讲义...');
 
         try {
+            // 获取选中的格式
+            let selectedFormat = 'html';
+            this.elements.formatRadios.forEach(radio => {
+                if (radio.checked) {
+                    selectedFormat = radio.value;
+                }
+            });
+
             const response = await fetch('/api/lecture/generate', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    file_paths: this.selectedFiles.map(item => item.path),
-                    show_analysis: this.generateOptions.showAnalysis,
-                    show_notes: this.generateOptions.showNotes,
-                    include_toc: this.generateOptions.includeToc,
-                    format: this.generateOptions.format,
-                    filename: this.generateOptions.filename
+                    file_paths: Array.from(this.selectedFiles),
+                    show_analysis: this.elements.showAnalysis.checked,
+                    show_notes: this.elements.showNotes.checked,
+                    include_toc: this.elements.includeToc.checked,
+                    format: selectedFormat
                 })
             });
 
@@ -811,8 +773,8 @@ class LectureGeneratorApp {
                 },
                 body: JSON.stringify({
                     file_path: filePath,
-                    show_analysis: this.generateOptions.showAnalysis,
-                    show_notes: this.generateOptions.showNotes
+                    show_analysis: this.elements.showAnalysis.checked,
+                    show_notes: this.elements.showNotes.checked
                 })
             });
 
@@ -839,7 +801,8 @@ class LectureGeneratorApp {
 
             if (data.success) {
                 // 更新当前路径显示
-                this.elements.currentPath.textContent = data.config.obsidian_repo;
+                this.elements.currentPath.textContent = data.config.obsidian_path;
+                this.elements.obsidianPath.textContent = data.config.obsidian_path;
                 return data.config;
             }
         } catch (error) {
@@ -855,8 +818,7 @@ class LectureGeneratorApp {
         // 获取当前配置
         this.loadConfig().then(config => {
             if (config) {
-                this.elements.pathInput.value = config.obsidian_repo;
-                this.elements.pathInput.readOnly = false;
+                this.elements.pathInput.value = config.obsidian_path;
                 this.validatePathInput();
             }
         });
@@ -920,7 +882,7 @@ class LectureGeneratorApp {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ obsidian_repo: path })
+                body: JSON.stringify({ obsidian_path: path })
             });
 
             const data = await response.json();
@@ -961,7 +923,7 @@ class LectureGeneratorApp {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ obsidian_repo: path })
+                body: JSON.stringify({ obsidian_path: path })
             });
 
             const data = await response.json();
@@ -972,10 +934,8 @@ class LectureGeneratorApp {
                 // 重新加载目录
                 this.loadDirectory();
                 // 清空已选择的文件（因为路径已更改）
-                this.selectedFiles = [];
-                this.renderSelectedList();
-                this.updateStatusPills();
-                this.clearPreview();
+                this.selectedFiles.clear();
+                this.updateSelectedList();
             } else {
                 this.showMessage(`更新失败: ${data.error}`, 'error');
             }
