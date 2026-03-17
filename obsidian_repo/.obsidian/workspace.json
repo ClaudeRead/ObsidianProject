@@ -1,0 +1,212 @@
+{
+  "main": {
+    "id": "d15bf276c5edf529",
+    "type": "split",
+    "children": [
+      {
+        "id": "994d7cc7fcab2a0f",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "b5c1262b077a4573",
+            "type": "leaf",
+            "state": {
+              "type": "empty",
+              "state": {},
+              "icon": "lucide-file",
+              "title": "新标签页"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "47bc73873f6474ca",
+    "type": "split",
+    "children": [
+      {
+        "id": "7f1df0dbb2607733",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "2cb4a347a55426b3",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "文件列表"
+            }
+          },
+          {
+            "id": "5235acb5a96787c7",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "搜索"
+            }
+          },
+          {
+            "id": "5220973a3bc106fb",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "书签"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "c56562df3e21654c",
+    "type": "split",
+    "children": [
+      {
+        "id": "5ec5285b0df53755",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "76f7a9599c13421a",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "第一章宪法/第二节 总纲（国家基本制度）/二、基本政治制度.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "二、基本政治制度 的反向链接列表"
+            }
+          },
+          {
+            "id": "1ada2e4cd24a519b",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "第一章宪法/第二节 总纲（国家基本制度）/二、基本政治制度.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "二、基本政治制度 的出链列表"
+            }
+          },
+          {
+            "id": "1ca922f65f008e2f",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "标签"
+            }
+          },
+          {
+            "id": "1a46bea5e51ba8c8",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "添加笔记属性"
+            }
+          },
+          {
+            "id": "6ab0d7e2e956cd5f",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "第一章宪法/第二节 总纲（国家基本制度）/二、基本政治制度.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "二、基本政治制度 的大纲"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:打开快速切换": false,
+      "graph:查看关系图谱": false,
+      "canvas:新建白板": false,
+      "daily-notes:打开/创建今天的日记": false,
+      "templates:插入模板": false,
+      "command-palette:打开命令面板": false,
+      "bases:新建数据库": false
+    }
+  },
+  "active": "2cb4a347a55426b3",
+  "lastOpenFiles": [
+    "第一章宪法/第1节 宪法概述/05_宪法制定、修改、监督.md",
+    "第一章宪法/第1节 宪法概述/04_新中国宪法的历史.md",
+    "第一章宪法/第1节 宪法概述/02_宪法的特征.md",
+    "第一章宪法/第1节 宪法概述/03_宪法的基本原则.md",
+    "第一章宪法/第1节 宪法概述/01_宪法的概念和本质.md",
+    "第一章宪法/第1节 宪法概述",
+    "第一章宪法/第3节 公民的基本权利和义务/01_我国公民的基本权利.md",
+    "第一章宪法/第3节 公民的基本权利和义务/02_我国公民的基本义务.md",
+    "第一章宪法/第3节 公民的基本权利和义务",
+    "第一章宪法/第2节 总纲（国家基本制度）/05_自然资源所有权制度.md",
+    "第一章宪法/第2节 总纲（国家基本制度）/04_特别行政区制度.md",
+    "第一章宪法/第2节 总纲（国家基本制度）/02_基本政治制度.md",
+    "第一章宪法/第2节 总纲（国家基本制度）/03_选举制度.md",
+    "第一章宪法/第2节 总纲（国家基本制度）/01_国体、政体、国家结构形式.md",
+    "第一章宪法/第2节 总纲（国家基本制度）",
+    "第一章宪法/第一节 宪法概述/01_宪法的概念和本质.md",
+    "第一章宪法/第一节 宪法概述/05_宪法制定、修改、监督.md",
+    "第一章宪法/第一节 宪法概述/04_新中国宪法的历史.md",
+    "第一章宪法/第一节 宪法概述/03_宪法的基本原则.md",
+    "第一章宪法/第一节 宪法概述/02_宪法的特征.md",
+    "第一章宪法/第三节 公民的基本权利和义务/01_我国公民的基本权利.md",
+    "第一章宪法/第三节 公民的基本权利和义务/02_我国公民的基本义务.md",
+    "第一章宪法/第二节 总纲（国家基本制度）/04_特别行政区制度.md",
+    "第一章宪法/第二节 总纲（国家基本制度）/05_自然资源所有权制度.md",
+    "第一章宪法/第二节 总纲（国家基本制度）/01_国体、政体、国家结构形式.md",
+    "第一章宪法/第二节 总纲（国家基本制度）/03_选举制度.md",
+    "第一章宪法/第二节 总纲（国家基本制度）/02_基本政治制度.md"
+  ]
+}
