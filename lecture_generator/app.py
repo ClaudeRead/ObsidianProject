@@ -6,7 +6,6 @@ Obsidian 讲义生成器 - 优化版主应用程序
 """
 
 import os
-import json
 import re
 from pathlib import Path
 from flask import Flask, render_template, request, jsonify, send_file, abort
@@ -21,7 +20,7 @@ app = Flask(__name__)
 CORS(app)  # 启用CORS
 
 # 初始化模块
-md_parser = MarkdownParser(clean_content=True, extract_images=True)
+md_parser = MarkdownParser(clean_content=True)
 
 # 确保输出目录存在
 def init_output_directory(output_dir):
@@ -121,6 +120,7 @@ def _generate_simplified_lecture(files_data, include_toc=False):
         return {'error': '没有可合并的文件数据'}
 
     parts = []
+    current_section = None
 
     # 如果包含目录，在顶部添加
     if include_toc and len(files_data) > 1:
@@ -133,6 +133,11 @@ def _generate_simplified_lecture(files_data, include_toc=False):
 
     # 内容部分（直接拼接，不添加额外信息）
     for i, file_data in enumerate(files_data):
+        section_name = Path(file_data.get('path', '')).parent.name
+        if section_name and section_name != '.' and section_name != current_section:
+            parts.append(f'# {section_name}\n\n')
+            current_section = section_name
+
         # 添加标题（使用h1标题作为模块标题）
         # 确保标题格式正确，避免重复
         title = file_data.get('title', '').strip()
@@ -295,47 +300,6 @@ def _convert_markdown_to_html(markdown_content):
 </html>'''
 
         return simple_html
-
-@app.route('/api/file/content', methods=['POST'])
-def get_file_content():
-    """获取文件内容（带过滤选项）"""
-    data = request.json
-    file_path = data.get('file_path')
-    show_analysis = data.get('show_analysis', True)
-    show_notes = data.get('show_notes', True)
-
-    if not file_path:
-        return jsonify({'success': False, 'error': '未指定文件路径'}), 400
-
-    try:
-        config = get_config()
-        obsidian_path = config.get('obsidian_repo')
-        full_path = os.path.join(obsidian_path, file_path)
-
-        if not os.path.exists(full_path):
-            return jsonify({'success': False, 'error': f'文件不存在: {file_path}'}), 404
-
-        # 使用Markdown解析器解析文件
-        result = md_parser.parse_file(full_path, show_analysis=show_analysis, show_notes=show_notes)
-
-        if 'error' in result:
-            return jsonify({'success': False, 'error': result['error']}), 404
-
-        return jsonify({
-            'success': True,
-            'content': result['parsed_content'],
-            'file_info': {
-                'path': file_path,
-                'name': os.path.basename(file_path),
-                'has_analysis': result['has_analysis'],
-                'has_notes': result['has_notes'],
-                'images': result['images'],
-                'image_count': result['image_count']
-            }
-        })
-
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/lecture/preview', methods=['POST'])
 def preview_lecture():

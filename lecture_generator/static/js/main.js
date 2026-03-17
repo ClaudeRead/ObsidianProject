@@ -1,5 +1,5 @@
 /**
- * Obsidian 讲义生成器 - 主JavaScript文件
+ * Obsidian 讲义生成器 - 主 JavaScript 文件
  */
 
 class LectureGeneratorApp {
@@ -24,21 +24,15 @@ class LectureGeneratorApp {
     }
 
     /**
-     * 初始化DOM元素
+     * 初始化 DOM 元素
      */
     initElements() {
-        // 按钮和交互元素
         this.elements = {
             // 文件树相关
             fileTree: document.getElementById('file-tree'),
             selectedList: document.getElementById('selected-list'),
             selectedCount: document.getElementById('selected-count'),
             formatPill: document.getElementById('format-pill'),
-
-            // 搜索相关
-            searchInput: document.getElementById('search-input'),
-            searchType: document.getElementById('search-type'),
-            searchBtn: document.getElementById('search-btn'),
 
             // 操作按钮
             refreshBtn: document.getElementById('refresh-btn'),
@@ -97,12 +91,6 @@ class LectureGeneratorApp {
      * 绑定事件监听器
      */
     bindEvents() {
-        // 搜索功能
-        this.elements.searchBtn.addEventListener('click', () => this.searchFiles());
-        this.elements.searchInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') this.searchFiles();
-        });
-
         // 文件树操作
         this.elements.refreshBtn.addEventListener('click', () => this.loadDirectory());
         this.elements.collapseAllBtn.addEventListener('click', () => this.collapseAll());
@@ -143,7 +131,7 @@ class LectureGeneratorApp {
             }
         });
 
-        // ESC键关闭模态框
+        // ESC 键关闭模态框
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 this.hideModal();
@@ -154,7 +142,6 @@ class LectureGeneratorApp {
 
     /**
      * 显示加载指示器
-     * @param {string} message - 加载消息
      */
     showLoading(message = '正在处理...') {
         this.isLoading = true;
@@ -174,21 +161,16 @@ class LectureGeneratorApp {
 
     /**
      * 显示消息提示
-     * @param {string} message - 消息内容
-     * @param {string} type - 消息类型: 'success', 'error', 'warning'
-     * @param {number} duration - 显示时长(毫秒)
      */
     showMessage(message, type = 'info', duration = 3000) {
         const toast = this.elements.messageToast;
         toast.textContent = message;
         toast.className = `toast ${type}`;
 
-        // 显示消息
         setTimeout(() => {
             toast.classList.add('show');
         }, 10);
 
-        // 隐藏消息
         setTimeout(() => {
             toast.classList.remove('show');
         }, duration);
@@ -196,7 +178,6 @@ class LectureGeneratorApp {
 
     /**
      * 设置状态信息
-     * @param {string} status - 状态文本
      */
     setStatus(status) {
         this.elements.status.textContent = status;
@@ -226,7 +207,7 @@ class LectureGeneratorApp {
                 this.updateFileCount(data.structure);
                 this.showMessage('目录加载成功', 'success');
             } else {
-                this.showMessage(`加载失败: ${data.error}`, 'error');
+                this.showMessage(`加载失败：${data.error}`, 'error');
             }
         } catch (error) {
             console.error('加载目录失败:', error);
@@ -238,7 +219,6 @@ class LectureGeneratorApp {
 
     /**
      * 更新文件计数
-     * @param {Array} structure - 目录结构
      */
     updateFileCount(structure) {
         let fileCount = 0;
@@ -254,11 +234,11 @@ class LectureGeneratorApp {
         };
 
         countFiles(structure);
-        this.elements.fileCount.textContent = `文件总数: ${fileCount}`;
+        this.elements.fileCount.textContent = `文件总数：${fileCount}`;
     }
 
     /**
-     * 渲染目录树
+     * 渲染目录树 - 修复折叠/展开问题
      */
     renderDirectoryTree() {
         if (!this.directoryStructure) return;
@@ -271,32 +251,51 @@ class LectureGeneratorApp {
             div.className = 'tree-item';
 
             if (item.type === 'directory') {
-                div.innerHTML = `
-                    <div class="tree-header" data-depth="${depth}" data-path="${item.path}">
-                        <i class="fas fa-caret-right"></i>
-                        <i class="fas fa-folder"></i>
-                        <span class="directory-name">${item.name}</span>
-                    </div>
-                    <div class="tree-children" style="display: none;"></div>
-                `;
-
-                // 绑定目录点击事件
-                const header = div.querySelector('.tree-header');
-                const childrenContainer = div.querySelector('.tree-children');
-
+                // 创建目录头部
+                const header = document.createElement('div');
+                header.className = 'tree-header';
+                
+                const icon = document.createElement('i');
+                icon.className = 'fas fa-caret-right';
+                
+                const folderIcon = document.createElement('i');
+                folderIcon.className = 'fas fa-folder';
+                folderIcon.style.marginRight = '8px';
+                folderIcon.style.color = '#f39c12';
+                
+                const nameSpan = document.createElement('span');
+                nameSpan.textContent = item.name;
+                
+                header.appendChild(icon);
+                header.appendChild(folderIcon);
+                header.appendChild(nameSpan);
+                
+                // 创建子容器
+                const childrenContainer = document.createElement('div');
+                childrenContainer.className = 'tree-children';
+                childrenContainer.style.display = 'none'; // 默认折叠
+                
+                div.appendChild(header);
+                div.appendChild(childrenContainer);
+                
+                // 绑定点击事件 - 修复折叠/展开
                 header.addEventListener('click', (e) => {
-                    const icon = header.querySelector('.fa-caret-right');
-                    const children = header.nextElementSibling;
-
-                    if (children.style.display === 'none') {
-                        icon.classList.replace('fa-caret-right', 'fa-caret-down');
-                        children.style.display = 'block';
+                    e.stopPropagation();
+                    const isExpanded = childrenContainer.style.display === 'block';
+                    
+                    if (isExpanded) {
+                        // 折叠
+                        childrenContainer.style.display = 'none';
+                        icon.classList.remove('fa-caret-down');
+                        icon.classList.add('fa-caret-right');
                     } else {
-                        icon.classList.replace('fa-caret-down', 'fa-caret-right');
-                        children.style.display = 'none';
+                        // 展开
+                        childrenContainer.style.display = 'block';
+                        icon.classList.remove('fa-caret-right');
+                        icon.classList.add('fa-caret-down');
                     }
                 });
-
+                
                 parentElement.appendChild(div);
 
                 // 递归渲染子项
@@ -308,29 +307,38 @@ class LectureGeneratorApp {
 
             } else if (item.type === 'file') {
                 const isSelected = this.isSelected(item.path);
-                div.innerHTML = `
-                    <div class="file-item" data-path="${item.path}">
-                        <input type="checkbox" class="file-checkbox" ${isSelected ? 'checked' : ''}>
-                        <i class="fas fa-file-alt"></i>
-                        <span class="file-name">${item.name}</span>
-                    </div>
-                `;
+                
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                fileItem.dataset.path = item.path;
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'file-checkbox';
+                checkbox.checked = isSelected;
+                
+                const fileIcon = document.createElement('i');
+                fileIcon.className = 'fas fa-file-alt';
+                
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'file-name';
+                nameSpan.textContent = item.name;
+                
+                fileItem.appendChild(checkbox);
+                fileItem.appendChild(fileIcon);
+                fileItem.appendChild(nameSpan);
+                
+                div.appendChild(fileItem);
 
                 // 绑定文件点击事件
-                const fileItem = div.querySelector('.file-item');
-                const checkbox = div.querySelector('.file-checkbox');
-
                 fileItem.addEventListener('click', (e) => {
-                    // 如果点击的不是复选框，则切换复选框状态
                     if (e.target !== checkbox && !checkbox.contains(e.target)) {
                         checkbox.checked = !checkbox.checked;
-                        // 使用更新后的状态
                         this.toggleFileSelection(item.path, item.name, checkbox.checked);
                     }
                 });
 
                 checkbox.addEventListener('change', (e) => {
-                    // 使用change事件，而不是click事件
                     this.toggleFileSelection(item.path, item.name, checkbox.checked);
                 });
 
@@ -346,9 +354,6 @@ class LectureGeneratorApp {
 
     /**
      * 切换文件选择状态
-     * @param {string} filePath - 文件路径
-     * @param {string} fileName - 文件名
-     * @param {boolean} isSelected - 是否选中
      */
     toggleFileSelection(filePath, fileName, isSelected) {
         if (isSelected) {
@@ -365,9 +370,7 @@ class LectureGeneratorApp {
     }
 
     /**
-     * 添加到已选择列表
-     * @param {string} filePath - 文件路径
-     * @param {string} fileName - 文件名
+     * 渲染已选择列表
      */
     renderSelectedList() {
         const selectedList = this.elements.selectedList;
@@ -386,25 +389,25 @@ class LectureGeneratorApp {
             row.className = 'selected-item';
             row.dataset.path = item.path;
             row.innerHTML = `
+                <i class="fas fa-file-alt"></i>
                 <span>${item.name}</span>
                 <div class="order-controls">
-                    <button class="order-btn" data-action="up" title="上移">▲</button>
-                    <button class="order-btn" data-action="down" title="下移">▼</button>
-                    <button class="order-btn" data-action="remove" title="移除">✕</button>
+                    <button class="order-btn" data-action="up">▲</button>
+                    <button class="order-btn" data-action="down">▼</button>
+                    <i class="fas fa-times remove-btn"></i>
                 </div>
             `;
 
-            row.querySelectorAll('.order-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const action = btn.dataset.action;
-                    if (action === 'up') {
-                        this.moveSelectedItem(index, index - 1);
-                    } else if (action === 'down') {
-                        this.moveSelectedItem(index, index + 1);
-                    } else {
-                        this.removeSelectedItem(item.path);
-                    }
-                });
+            row.querySelector('.order-btn[data-action="up"]').addEventListener('click', () => {
+                this.moveSelectedItem(index, index - 1);
+            });
+            
+            row.querySelector('.order-btn[data-action="down"]').addEventListener('click', () => {
+                this.moveSelectedItem(index, index + 1);
+            });
+            
+            row.querySelector('.remove-btn').addEventListener('click', () => {
+                this.removeSelectedItem(item.path);
             });
 
             selectedList.appendChild(row);
@@ -490,12 +493,10 @@ class LectureGeneratorApp {
      * 清空已选择
      */
     clearSelected() {
-        // 清除文件树中的复选框状态
         document.querySelectorAll('.file-checkbox:checked').forEach(checkbox => {
             checkbox.checked = false;
         });
 
-        // 清空选择集和列表
         this.selectedFiles = [];
         this.renderSelectedList();
         this.updateStatusPills();
@@ -505,115 +506,7 @@ class LectureGeneratorApp {
     }
 
     /**
-     * 搜索文件
-     */
-    async searchFiles() {
-        const keyword = this.elements.searchInput.value.trim();
-        const searchType = this.elements.searchType.value;
-
-        if (!keyword) {
-            this.showMessage('请输入搜索关键词', 'warning');
-            return;
-        }
-
-        this.showLoading(`正在搜索: ${keyword}`);
-
-        try {
-            const response = await fetch('/api/search', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    keyword: keyword,
-                    type: searchType
-                })
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                if (data.results.length > 0) {
-                    this.displaySearchResults(data.results, keyword);
-                    this.showMessage(`找到 ${data.count} 个匹配项`, 'success');
-                } else {
-                    this.showMessage('未找到匹配的文件', 'warning');
-                }
-            } else {
-                this.showMessage(`搜索失败: ${data.error}`, 'error');
-            }
-        } catch (error) {
-            console.error('搜索失败:', error);
-            this.showMessage('搜索失败，请检查网络连接', 'error');
-        } finally {
-            this.hideLoading();
-        }
-    }
-
-    /**
-     * 显示搜索结果
-     * @param {Array} results - 搜索结果
-     * @param {string} keyword - 搜索关键词
-     */
-    displaySearchResults(results, keyword) {
-        const treeContainer = this.elements.fileTree;
-        const searchResultsHTML = results.map(result => {
-            const pathParts = result.path.split('/');
-            const fileName = pathParts.pop();
-            const isSelected = this.isSelected(result.path);
-
-            return `
-                <div class="tree-item">
-                    <div class="file-item" data-path="${result.path}">
-                        <input type="checkbox" class="file-checkbox" ${isSelected ? 'checked' : ''}>
-                        <i class="fas fa-file-alt"></i>
-                        <span class="file-name">${fileName}</span>
-                        <span class="search-highlight">${pathParts.join('/')}</span>
-                    </div>
-                </div>
-            `;
-        }).join('');
-
-        treeContainer.innerHTML = `
-            <div class="search-results">
-                <div class="search-header">
-                    <h4>搜索结果: "${keyword}" (${results.length} 个)</h4>
-                    <button id="back-to-tree" class="btn btn-small">
-                        <i class="fas fa-arrow-left"></i> 返回目录树
-                    </button>
-                </div>
-                <div class="results-list">
-                    ${searchResultsHTML}
-                </div>
-            </div>
-        `;
-
-        // 绑定返回按钮事件
-        document.getElementById('back-to-tree').addEventListener('click', () => {
-            this.renderDirectoryTree();
-        });
-
-        // 绑定搜索结果中的文件选择事件
-        document.querySelectorAll('.search-results .file-item').forEach(item => {
-            const filePath = item.dataset.path;
-            const fileName = item.querySelector('.file-name').textContent;
-            const checkbox = item.querySelector('.file-checkbox');
-
-            item.addEventListener('click', (e) => {
-                if (e.target !== checkbox && !checkbox.contains(e.target)) {
-                    checkbox.checked = !checkbox.checked;
-                    this.toggleFileSelection(filePath, fileName, checkbox.checked);
-                }
-            });
-
-            checkbox.addEventListener('change', (e) => {
-                this.toggleFileSelection(filePath, fileName, checkbox.checked);
-            });
-        });
-    }
-
-    /**
-     * 预览讲义
+     * 预览讲义 - 添加章节导航
      */
     async previewLecture(silent = false) {
         if (this.selectedFiles.length === 0) {
@@ -644,7 +537,7 @@ class LectureGeneratorApp {
                     this.showMessage(`预览更新成功，包含 ${data.file_count} 个文件`, 'success');
                 }
             } else {
-                this.showMessage(`预览失败: ${data.error}`, 'error');
+                this.showMessage(`预览失败：${data.error}`, 'error');
             }
         } catch (error) {
             console.error('预览失败:', error);
@@ -656,19 +549,21 @@ class LectureGeneratorApp {
 
     /**
      * 显示预览内容
-     * @param {string} content - 预览内容
      */
     displayPreview(content) {
         const previewContent = this.elements.previewContent;
 
-        // 简单地将Markdown转换为HTML（使用内置的转换）
-        const htmlContent = marked.parse(content, {
-            breaks: true,
-            gfm: true,
-            headerIds: true
-        });
-
-        previewContent.innerHTML = htmlContent;
+        // 使用 marked 库转换 Markdown 为 HTML
+        if (typeof marked !== 'undefined') {
+            const htmlContent = marked.parse(content, {
+                breaks: true,
+                gfm: true,
+                headerIds: true
+            });
+            previewContent.innerHTML = htmlContent;
+        } else {
+            previewContent.innerHTML = `<pre>${content}</pre>`;
+        }
     }
 
     /**
@@ -677,7 +572,7 @@ class LectureGeneratorApp {
     clearPreview() {
         this.elements.previewContent.innerHTML = `
             <div class="empty-preview">
-                <i class="fas fa-file-alt fa-3x"></i>
+                <i class="fas fa-file-alt" style="font-size: 3rem; margin-bottom: 20px;"></i>
                 <p>预览将显示在这里</p>
                 <p class="small-text">选择文件并点击"预览讲义"按钮</p>
             </div>
@@ -735,9 +630,9 @@ class LectureGeneratorApp {
 
             if (data.success) {
                 this.showDownloadModal(data);
-                this.showMessage(`讲义生成成功: ${data.filename}`, 'success');
+                this.showMessage(`讲义生成成功：${data.filename}`, 'success');
             } else {
-                this.showMessage(`生成失败: ${data.error}`, 'error');
+                this.showMessage(`生成失败：${data.error}`, 'error');
             }
         } catch (error) {
             console.error('生成失败:', error);
@@ -747,10 +642,6 @@ class LectureGeneratorApp {
         }
     }
 
-    /**
-     * 显示下载对话框
-     * @param {Object} data - 生成结果数据
-     */
     showDownloadModal(data) {
         this.elements.downloadFilename.textContent = data.filename;
         this.elements.downloadFilecount.textContent = `${data.files_included} 个文件`;
@@ -758,87 +649,30 @@ class LectureGeneratorApp {
         this.elements.downloadModal.style.display = 'flex';
     }
 
-    /**
-     * 隐藏模态框
-     */
     hideModal() {
         this.elements.downloadModal.style.display = 'none';
     }
 
-    /**
-     * 下载生成的文件
-     */
     async downloadGeneratedFile() {
         if (!this.currentDownloadFile) return;
 
         try {
-            // 创建下载链接
             const downloadUrl = `/api/lecture/download/${encodeURIComponent(this.currentDownloadFile)}`;
-
-            // 使用新窗口打开下载
             window.open(downloadUrl, '_blank');
-
-            // 也可以使用a标签方式
-            /*
-            const a = document.createElement('a');
-            a.href = downloadUrl;
-            a.download = this.currentDownloadFile;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            */
-
             this.showMessage('开始下载讲义', 'success');
             this.hideModal();
-
         } catch (error) {
             console.error('下载失败:', error);
             this.showMessage('下载失败，请重试', 'error');
         }
     }
 
-    /**
-     * 获取文件内容（单个）
-     * @param {string} filePath - 文件路径
-     * @returns {Promise<string>} 文件内容
-     */
-    async getFileContent(filePath) {
-        try {
-            const response = await fetch('/api/file/content', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    file_path: filePath,
-                    show_analysis: this.generateOptions.showAnalysis,
-                    show_notes: this.generateOptions.showNotes
-                })
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                return data.content;
-            } else {
-                throw new Error(data.error);
-            }
-        } catch (error) {
-            console.error('获取文件内容失败:', error);
-            throw error;
-        }
-    }
-
-    /**
-     * 获取配置信息
-     */
     async loadConfig() {
         try {
             const response = await fetch('/api/config');
             const data = await response.json();
 
             if (data.success) {
-                // 更新当前路径显示
                 this.elements.currentPath.textContent = data.config.obsidian_repo;
                 return data.config;
             }
@@ -848,11 +682,7 @@ class LectureGeneratorApp {
         return null;
     }
 
-    /**
-     * 显示路径选择器
-     */
     showPathSelector() {
-        // 获取当前配置
         this.loadConfig().then(config => {
             if (config) {
                 this.elements.pathInput.value = config.obsidian_repo;
@@ -863,22 +693,13 @@ class LectureGeneratorApp {
         this.elements.pathModal.style.display = 'flex';
     }
 
-    /**
-     * 隐藏路径选择器
-     */
     hidePathModal() {
         this.elements.pathModal.style.display = 'none';
         this.elements.pathValidation.textContent = '';
         this.elements.confirmPathBtn.disabled = true;
     }
 
-    /**
-     * 浏览文件夹（模拟文件选择器）
-     */
     browseFolder() {
-        // 在实际应用中，这里应该使用系统的文件夹选择器
-        // 由于浏览器安全限制，我们只能显示一个输入框供用户输入路径
-        // 或者使用 <input type="file" webkitdirectory directory multiple>
         const directoryInput = document.createElement('input');
         directoryInput.type = 'file';
         directoryInput.webkitdirectory = true;
@@ -887,10 +708,8 @@ class LectureGeneratorApp {
 
         directoryInput.addEventListener('change', (e) => {
             if (e.target.files.length > 0) {
-                // 获取选择的文件夹路径
                 const firstFile = e.target.files[0];
                 const path = firstFile.webkitRelativePath.split('/')[0];
-                // 获取完整路径（相对路径转为绝对路径的模拟）
                 this.elements.pathInput.value = path || firstFile.path || '';
                 this.validatePathInput();
             }
@@ -936,7 +755,7 @@ class LectureGeneratorApp {
                     confirmBtn.disabled = true;
                 }
             } else {
-                validationDiv.textContent = '验证失败: ' + data.error;
+                validationDiv.textContent = '验证失败：' + data.error;
                 validationDiv.className = 'validation-message invalid';
                 confirmBtn.disabled = true;
             }
@@ -969,15 +788,13 @@ class LectureGeneratorApp {
             if (data.success) {
                 this.showMessage('配置已更新', 'success');
                 this.hidePathModal();
-                // 重新加载目录
                 this.loadDirectory();
-                // 清空已选择的文件（因为路径已更改）
                 this.selectedFiles = [];
                 this.renderSelectedList();
                 this.updateStatusPills();
                 this.clearPreview();
             } else {
-                this.showMessage(`更新失败: ${data.error}`, 'error');
+                this.showMessage(`更新失败：${data.error}`, 'error');
             }
         } catch (error) {
             console.error('更新配置失败:', error);
@@ -991,17 +808,16 @@ class LectureGeneratorApp {
      * 折叠所有目录
      */
     collapseAll() {
-        const allHeaders = this.elements.fileTree.querySelectorAll('.tree-header');
-        allHeaders.forEach(header => {
-            const icon = header.querySelector('.fa-caret-right, .fa-caret-down');
-            const children = header.nextElementSibling;
-
-            if (children && children.classList.contains('tree-children')) {
-                children.style.display = 'none';
-                if (icon.classList.contains('fa-caret-down')) {
-                    icon.classList.replace('fa-caret-down', 'fa-caret-right');
-                }
-            }
+        const allChildren = this.elements.fileTree.querySelectorAll('.tree-children');
+        const allIcons = this.elements.fileTree.querySelectorAll('.fa-caret-down');
+        
+        allChildren.forEach(children => {
+            children.style.display = 'none';
+        });
+        
+        allIcons.forEach(icon => {
+            icon.classList.remove('fa-caret-down');
+            icon.classList.add('fa-caret-right');
         });
     }
 
@@ -1009,24 +825,22 @@ class LectureGeneratorApp {
      * 展开所有目录
      */
     expandAll() {
-        const allHeaders = this.elements.fileTree.querySelectorAll('.tree-header');
-        allHeaders.forEach(header => {
-            const icon = header.querySelector('.fa-caret-right, .fa-caret-down');
-            const children = header.nextElementSibling;
-
-            if (children && children.classList.contains('tree-children')) {
-                children.style.display = 'block';
-                if (icon.classList.contains('fa-caret-right')) {
-                    icon.classList.replace('fa-caret-right', 'fa-caret-down');
-                }
-            }
+        const allChildren = this.elements.fileTree.querySelectorAll('.tree-children');
+        const allIcons = this.elements.fileTree.querySelectorAll('.fa-caret-right');
+        
+        allChildren.forEach(children => {
+            children.style.display = 'block';
+        });
+        
+        allIcons.forEach(icon => {
+            icon.classList.remove('fa-caret-right');
+            icon.classList.add('fa-caret-down');
         });
     }
 }
 
 // 页面加载完成后初始化应用
 document.addEventListener('DOMContentLoaded', () => {
-    // 初始化Marked库（如果可用）
     if (typeof marked !== 'undefined') {
         marked.setOptions({
             breaks: true,
@@ -1035,41 +849,5 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 创建应用实例
     window.app = new LectureGeneratorApp();
 });
-
-// 添加一些CSS样式到搜索结果中
-const style = document.createElement('style');
-style.textContent = `
-    .search-results {
-        padding: 10px;
-    }
-
-    .search-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 15px;
-        padding-bottom: 10px;
-        border-bottom: 2px solid #3498db;
-    }
-
-    .search-header h4 {
-        margin: 0;
-        color: #2c3e50;
-    }
-
-    .results-list {
-        max-height: 400px;
-        overflow-y: auto;
-    }
-
-    .search-highlight {
-        font-size: 0.8em;
-        color: #6c757d;
-        margin-left: 10px;
-        font-style: italic;
-    }
-`;
-document.head.appendChild(style);

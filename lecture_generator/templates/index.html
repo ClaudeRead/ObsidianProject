@@ -6,132 +6,224 @@
     <title>Obsidian 讲义生成器</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1><i class="fas fa-book"></i> Obsidian 讲义生成器</h1>
-            <p class="subtitle">从您的Obsidian仓库生成自定义讲义</p>
+        <!-- 顶部导航栏 -->
+        <header class="header">
+            <div class="logo">
+                <i class="fas fa-book-open"></i>
+                <h1>Obsidian 讲义生成器</h1>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-primary" id="open-generate-modal">
+                    <i class="fas fa-download"></i> 生成讲义
+                </button>
+                <button class="btn btn-secondary" id="select-path-btn">
+                    <i class="fas fa-folder-open"></i> 选择仓库路径
+                </button>
+            </div>
         </header>
 
+        <!-- 主内容区 -->
         <main class="main-content">
-            <div class="top-bar">
-                <div class="path-selector">
-                    <div class="path-display">
-                        <span class="path-label">当前路径:</span>
-                        <span id="current-path" class="path-value">正在加载...</span>
+            <!-- 左侧面板：文件选择 -->
+            <div class="panel file-panel">
+                <div class="panel-header">
+                    <h2><i class="fas fa-folder-tree"></i> Obsidian 文件树</h2>
+                    <div class="actions">
+                        <button class="btn btn-secondary btn-small" id="refresh-btn" title="刷新">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                        <button class="btn btn-secondary btn-small" id="collapse-all-btn" title="折叠全部">
+                            <i class="fas fa-compress-alt"></i>
+                        </button>
+                        <button class="btn btn-secondary btn-small" id="expand-all-btn" title="展开全部">
+                            <i class="fas fa-expand-alt"></i>
+                        </button>
                     </div>
-                    <button id="select-path-btn" class="btn btn-small">
-                        <i class="fas fa-folder-open"></i> 选择路径
-                    </button>
                 </div>
-                <div class="flow-hint">
-                    选择文件 → 排序 → 生成 → 预览
-                </div>
-                <div class="top-actions">
-                    <div class="status-pill">
-                        已选 <span id="selected-count">0</span>
+
+                <!-- 文件树容器 -->
+                <div class="file-tree-container">
+                    <div id="file-tree" class="file-tree">
+                        <div class="loading">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <p>正在加载目录结构...</p>
+                        </div>
                     </div>
-                    <div class="status-pill" id="format-pill">HTML</div>
-                    <button id="open-generate-modal" class="btn btn-success">
-                        <i class="fas fa-wand-magic-sparkles"></i> 生成讲义
-                    </button>
+                </div>
+
+                <!-- 状态信息 -->
+                <div class="status-bar">
+                    <span id="status" class="status">就绪</span>
+                    <span id="file-count" class="file-count">文件总数：0</span>
                 </div>
             </div>
 
-            <div class="workspace-grid">
-                <!-- 左侧：文件树 -->
-                <section class="panel file-panel">
-                    <div class="panel-header">
-                        <h2><i class="fas fa-folder-open"></i> Obsidian 文件树</h2>
-                        <div class="actions">
-                            <button id="refresh-btn" class="btn btn-small" title="刷新目录">
-                                <i class="fas fa-sync-alt"></i>
-                            </button>
-                            <button id="collapse-all-btn" class="btn btn-small" title="折叠所有">
-                                <i class="fas fa-compress-alt"></i>
-                            </button>
-                            <button id="expand-all-btn" class="btn btn-small" title="展开所有">
-                                <i class="fas fa-expand-alt"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="search-box">
-                        <input type="text" id="search-input" placeholder="搜索文件或内容...">
-                        <select id="search-type">
-                            <option value="filename">搜索文件名</option>
-                            <option value="content">搜索内容</option>
-                        </select>
-                        <button id="search-btn" class="btn btn-small">
-                            <i class="fas fa-search"></i>
+            <!-- 中间面板：已选择文件 -->
+            <div class="panel selected-panel">
+                <div class="panel-header">
+                    <h2><i class="fas fa-clipboard-list"></i> 已选择文件</h2>
+                    <div class="actions">
+                        <button class="btn btn-secondary btn-small" id="sort-selected" title="排序">
+                            <i class="fas fa-sort-alpha-down"></i>
+                        </button>
+                        <button class="btn btn-danger btn-small" id="clear-selected" title="清空">
+                            <i class="fas fa-trash-alt"></i>
                         </button>
                     </div>
+                </div>
 
-                    <div class="file-tree" id="file-tree">
-                        <div class="loading">
-                            <i class="fas fa-spinner fa-spin"></i> 正在加载目录结构...
-                        </div>
-                    </div>
-                </section>
+                <div class="selected-info">
+                    <span>已选择 <strong id="selected-count">0</strong> 个文件</span>
+                    <span>格式：<strong id="format-pill">HTML</strong></span>
+                </div>
 
-                <!-- 中间：已选文件排序与管理 -->
-                <section class="panel selection-panel">
-                    <div class="panel-header">
-                        <h2><i class="fas fa-list-check"></i> 已选文件</h2>
-                        <div class="actions">
-                            <button id="sort-selected" class="btn btn-small" title="按名称排序">
-                                <i class="fas fa-arrow-down-a-z"></i>
-                            </button>
-                            <button id="clear-selected" class="btn btn-small" title="清空选择">
-                                <i class="fas fa-trash-alt"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="selected-list" id="selected-list">
-                        <p class="empty-message">暂无选择的文件</p>
-                    </div>
-                    <div class="selection-hint">使用上下按钮调整讲义结构</div>
-                </section>
+                <div id="selected-list" class="selected-list">
+                    <p class="empty-message">暂无选择的文件</p>
+                </div>
 
-                <!-- 右侧：实时预览 -->
-                <section class="panel preview-panel">
-                    <div class="panel-header">
-                        <h2><i class="fas fa-file-lines"></i> 实时讲义预览</h2>
-                        <div class="actions">
-                            <button id="copy-preview" class="btn btn-small" title="复制预览内容">
-                                <i class="fas fa-copy"></i>
-                            </button>
-                            <button id="clear-preview" class="btn btn-small" title="清空预览">
-                                <i class="fas fa-trash-alt"></i>
-                            </button>
-                        </div>
-                    </div>
+            </div>
 
-                    <div class="preview-content" id="preview-content">
-                        <div class="empty-preview">
-                            <i class="fas fa-file-alt fa-3x"></i>
-                            <p>预览将显示在这里</p>
-                            <p class="small-text">选择文件后自动生成实时预览</p>
-                        </div>
+            <!-- 右侧面板：预览 -->
+            <div class="panel preview-panel">
+                <div class="panel-header">
+                    <h2><i class="fas fa-eye"></i> 讲义预览</h2>
+                    <div class="actions">
+                        <button class="btn btn-secondary btn-small" id="copy-preview">
+                            <i class="fas fa-copy"></i> 复制
+                        </button>
+                        <button class="btn btn-secondary btn-small" id="clear-preview">
+                            <i class="fas fa-trash"></i> 清空
+                        </button>
                     </div>
-                </section>
+                </div>
+
+                <!-- 预览内容 -->
+                <div id="preview-content" class="preview-content">
+                    <div class="empty-preview">
+                        <i class="fas fa-file-alt" style="font-size: 3rem; margin-bottom: 20px; color: #cbd5e0;"></i>
+                        <p style="color: #718096;">预览将显示在这里</p>
+                        <p class="small-text" style="color: #a0aec0;">从左侧选择文件后自动预览</p>
+                    </div>
+                </div>
             </div>
         </main>
 
-        <footer>
-            <p>Obsidian 讲义生成器 &copy; 2024 |
-                <span id="status">就绪</span> |
-                <span id="file-count">加载中...</span>
+        <!-- 底部信息 -->
+        <footer class="footer">
+            <p>Obsidian 讲义生成器 v1.0 | 
+               <span>当前路径：<strong id="current-path">未设置</strong></span>
             </p>
         </footer>
     </div>
 
-    <!-- 加载指示器 -->
+    <!-- 路径选择模态框 -->
+    <div id="path-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-folder-open"></i> 选择 Obsidian 仓库路径</h3>
+                <button class="modal-close" id="cancel-path-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="path-input">仓库路径</label>
+                    <div class="input-group">
+                        <input type="text" id="path-input" class="form-control" placeholder="请输入 Obsidian 仓库的完整路径">
+                        <button class="btn btn-secondary" id="browse-path-btn">
+                            <i class="fas fa-folder"></i> 浏览
+                        </button>
+                    </div>
+                    <div id="path-validation" class="validation-message"></div>
+                </div>
+                <div class="tips">
+                    <h4><i class="fas fa-lightbulb"></i> 提示</h4>
+                    <ul>
+                        <li>路径必须是存在的文件夹</li>
+                        <li>文件夹中应包含 Markdown 文件</li>
+                        <li>确保有读取该路径的权限</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancel-path-btn">取消</button>
+                <button class="btn btn-primary" id="confirm-path-btn" disabled>确认</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 生成选项模态框 -->
+    <div id="generate-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-cog"></i> 讲义生成选项</h3>
+                <button class="modal-close" id="cancel-generate">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="modal-show-analysis" checked>
+                        <span>包含【解析】内容</span>
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="modal-show-notes" checked>
+                        <span>包含【注意】内容</span>
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="modal-include-toc" checked>
+                        <span>生成目录</span>
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label for="modal-format">输出格式</label>
+                    <select id="modal-format" class="form-control">
+                        <option value="html">HTML</option>
+                        <option value="md">Markdown</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="modal-filename">文件名（可选）</label>
+                    <input type="text" id="modal-filename" class="form-control" placeholder="留空则自动生成">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancel-generate">取消</button>
+                <button class="btn btn-primary" id="confirm-generate">生成</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 下载模态框 -->
+    <div id="download-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-check-circle"></i> 讲义生成成功</h3>
+                <button class="modal-close" id="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="success-info">
+                    <p><strong>文件名：</strong><span id="download-filename"></span></p>
+                    <p><strong>包含：</strong><span id="download-filecount"></span></p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="close-modal">关闭</button>
+                <button class="btn btn-primary" id="download-btn">
+                    <i class="fas fa-download"></i> 下载
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 加载遮罩 -->
     <div id="loading-overlay" class="loading-overlay">
-        <div class="loading-content">
-            <i class="fas fa-spinner fa-spin fa-3x"></i>
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
             <p id="loading-message">正在处理...</p>
         </div>
     </div>
@@ -139,96 +231,8 @@
     <!-- 消息提示 -->
     <div id="message-toast" class="toast"></div>
 
-    <!-- 路径选择对话框 -->
-    <div id="path-modal" class="modal">
-        <div class="modal-content">
-            <h2><i class="fas fa-folder-open"></i> 选择 Obsidian 仓库路径</h2>
-            <p>请选择您的 Obsidian 知识库文件夹：</p>
-            <div class="path-input-group">
-                <input type="text" id="path-input" placeholder="请输入文件夹路径或点击选择...">
-                <button id="browse-path-btn" class="btn btn-small">
-                    <i class="fas fa-folder"></i> 浏览
-                </button>
-            </div>
-            <div id="path-validation" class="validation-message">
-                <!-- 验证信息将显示在这里 -->
-            </div>
-            <div class="modal-actions">
-                <button id="confirm-path-btn" class="btn btn-success" disabled>
-                    <i class="fas fa-check"></i> 确认选择
-                </button>
-                <button id="cancel-path-btn" class="btn btn-secondary">
-                    取消
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 下载对话框 -->
-    <div id="download-modal" class="modal">
-        <div class="modal-content">
-            <h2><i class="fas fa-check-circle"></i> 讲义生成成功</h2>
-            <p>讲义已成功生成，您可以下载文件：</p>
-            <div class="download-info">
-                <p><strong>文件名:</strong> <span id="download-filename"></span></p>
-                <p><strong>包含文件:</strong> <span id="download-filecount"></span></p>
-            </div>
-            <div class="modal-actions">
-                <button id="download-btn" class="btn btn-success">
-                    <i class="fas fa-download"></i> 下载讲义
-                </button>
-                <button id="close-modal" class="btn btn-secondary">
-                    关闭
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 生成选项对话框 -->
-    <div id="generate-modal" class="modal">
-        <div class="modal-content generate-modal">
-            <div class="modal-title">
-                <h2><i class="fas fa-sliders"></i> 生成选项</h2>
-            </div>
-            <div class="modal-section">
-                <div class="checkbox-group">
-                    <label class="checkbox">
-                        <input type="checkbox" id="modal-show-analysis" checked>
-                        <span class="checkmark"></span>
-                        包含【解析】内容
-                    </label>
-                    <label class="checkbox">
-                        <input type="checkbox" id="modal-show-notes" checked>
-                        <span class="checkmark"></span>
-                        包含【注意】内容
-                    </label>
-                    <label class="checkbox">
-                        <input type="checkbox" id="modal-include-toc" checked>
-                        <span class="checkmark"></span>
-                        生成目录
-                    </label>
-                </div>
-                <div class="select-row">
-                    <label for="modal-format">输出格式</label>
-                    <select id="modal-format">
-                        <option value="md">Markdown 格式</option>
-                        <option value="html" selected>HTML 格式</option>
-                    </select>
-                </div>
-            </div>
-            <div class="modal-section">
-                <label class="input-label" for="modal-filename">文件名</label>
-                <input type="text" id="modal-filename" placeholder="留空自动生成">
-            </div>
-            <div class="modal-actions">
-                <button id="cancel-generate" class="btn btn-secondary">取消</button>
-                <button id="confirm-generate" class="btn btn-success">
-                    <i class="fas fa-bolt"></i> 确认生成
-                </button>
-            </div>
-        </div>
-    </div>
-
+    <!-- 引入脚本 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.2/marked.min.js"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>

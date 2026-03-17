@@ -27,26 +27,10 @@
 - 可自定义是否包含目录
 - 实时预览和即时下载
 
-### 🔎 搜索功能
-- 按文件名搜索
-- 按文件内容搜索
-- 搜索结果中直接选择
 
 ## 🚀 快速开始
 
-### 方法一：使用启动脚本（推荐）
-
-**Windows用户：**
-1. 双击 `start.bat`
-2. 自动安装依赖并启动
-
-**Linux/Mac用户：**
-```bash
-chmod +x start.sh
-./start.sh
-```
-
-### 方法二：手动安装
+### 手动安装
 
 1. **安装依赖**
    ```bash
@@ -54,7 +38,7 @@ chmod +x start.sh
    ```
 
 2. **检查配置**
-   - 确保 `config.py` 中的 `OBSIDIAN_REPO` 正确指向您的Obsidian仓库
+   - 确保 `config.json` 中的 `obsidian_repo` 正确指向您的Obsidian仓库
    - 默认路径为 `../obsidian_repo`
 
 3. **启动应用**
@@ -77,14 +61,12 @@ chmod +x start.sh
 ```
 lecture_generator/
 ├── app.py                 # 主应用程序（Flask）
-├── config.py              # 配置文件
-├── obsidian_parser.py     # Obsidian内容解析器
-├── lecture_generator.py   # 讲义生成器
+├── config.json            # 配置文件
 ├── requirements.txt       # Python依赖
 ├── README.md              # 项目说明
-├── 使用指南.md            # 详细使用文档
-├── start.bat              # Windows启动脚本
-├── start.sh               # Linux/Mac启动脚本
+├── core/                  # 核心模块
+│   ├── md_parser.py        # Markdown解析
+│   └── path_handler.py     # 配置与路径处理
 ├── templates/             # HTML模板
 │   └── index.html         # 主界面
 ├── static/                # 静态资源
@@ -102,29 +84,19 @@ lecture_generator/
 - **依赖**：
   - Flask：Web框架
   - Flask-CORS：跨域支持
-  - markdown：Markdown解析
-  - bleach：HTML清理
+   - markdown：Markdown解析
 
 ## 🔧 配置说明
 
-主要配置在 `config.py` 文件中：
+主要配置在 `config.json` 文件中：
 
-```python
-class Config:
-    # Obsidian仓库路径
-    OBSIDIAN_REPO = "路径/到/obsidian_repo"
-
-    # 服务器设置
-    HOST = '0.0.0.0'  # 监听所有地址
-    PORT = 5000       # 监听端口
-
-    # 输出目录
-    OUTPUT_DIR = "路径/到/output"
+```json
+{
+   "obsidian_repo": "路径/到/obsidian_repo",
+   "output_dir": "路径/到/output",
+   "markdown_extensions": [".md", ".markdown"]
+}
 ```
-
-## 📖 详细文档
-
-完整的使用说明请查看：[使用指南.md](使用指南.md)
 
 ## 🐛 故障排除
 
@@ -137,10 +109,10 @@ class Config:
    ```
 
 2. **端口被占用**
-   修改 `config.py` 中的 `PORT` 为其他端口（如 5001, 8080）
+   修改启动命令中的端口或使用环境变量覆盖
 
 3. **无法找到Obsidian仓库**
-   检查 `config.py` 中的 `OBSIDIAN_REPO` 路径是否正确
+   检查 `config.json` 中的 `obsidian_repo` 路径是否正确
 
 4. **中文字符乱码**
    确保Obsidian文件使用UTF-8编码保存
