@@ -233,7 +233,67 @@ def _generate_simplified_lecture(files_data, include_toc=False):
         'total_files': len(files_data)
     }
 
-def _convert_markdown_to_html(markdown_content):
+def _extract_api_image_paths(content):
+    """提取Markdown/HTML中的 /api/image/ 路径"""
+    image_paths = set()
+
+    md_pattern = re.compile(r'!\[[^\]]*\]\((/api/image/[^)]+)\)')
+    html_pattern = re.compile(r'<img[^>]*\bsrc="(/api/image/[^"]+)"[^>]*>')
+
+    for match in md_pattern.finditer(content):
+        image_paths.add(match.group(1))
+
+    for match in html_pattern.finditer(content):
+        image_paths.add(match.group(1))
+
+    return sorted(image_paths)
+
+def _normalize_image_relative_path(api_image_url):
+    """将 /api/image/... 转为相对路径，防止路径穿越"""
+    from urllib.parse import unquote
+
+    if not api_image_url.startswith('/api/image/'):
+        return None
+
+    raw_path = unquote(api_image_url.replace('/api/image/', '', 1))
+    normalized = raw_path.replace('\\', '/').lstrip('/').lstrip('./')
+
+    if normalized.startswith('..') or normalized.startswith('/'):
+        return None
+
+    normalized = os.path.normpath(normalized).replace('\\', '/')
+    if normalized.startswith('..'):
+        return None
+
+    return normalized
+
+def _copy_images_to_output(obsidian_path, image_paths, image_output_dir):
+    """复制讲义中引用的图片到输出目录"""
+    import shutil
+
+    copied = []
+    for api_path in image_paths:
+        rel_path = _normalize_image_relative_path(api_path)
+        if not rel_path:
+            continue
+
+        source_path = os.path.abspath(os.path.join(obsidian_path, rel_path))
+        base_path = os.path.abspath(obsidian_path)
+
+        if not (source_path == base_path or source_path.startswith(base_path + os.sep)):
+            continue
+
+        if not os.path.isfile(source_path):
+            continue
+
+        target_path = os.path.join(image_output_dir, rel_path)
+        os.makedirs(os.path.dirname(target_path), exist_ok=True)
+        shutil.copy2(source_path, target_path)
+        copied.append(rel_path)
+
+    return copied
+
+def _convert_markdown_to_html(markdown_content, image_url_transform=None):
     """将Markdown内容转换为HTML
 
     Args:
@@ -250,28 +310,23 @@ def _convert_markdown_to_html(markdown_content):
 
         # 处理图片路径，确保在生成的HTML中也能正确显示
         import re
-        from urllib.parse import unquote
-        config = get_config()
-        obsidian_path = config.get('obsidian_repo')
 
-        def to_file_url(src):
-            if not src.startswith('/api/image/'):
+        def normalize_image_src(src):
+            if not image_url_transform:
                 return None
-            image_path = unquote(src.replace('/api/image/', '', 1))
-            full_path = os.path.join(obsidian_path, image_path)
-            return f'file://{full_path.replace("\\", "/")}'
+            return image_url_transform(src)
 
         def replace_img_tag(match):
             src = match.group(1)
-            file_url = to_file_url(src)
-            if not file_url:
+            new_src = normalize_image_src(src)
+            if not new_src:
                 return match.group(0)
-            return match.group(0).replace(src, file_url)
+            return match.group(0).replace(src, new_src)
 
         def replace_markdown_image(match):
             alt = match.group(1)
             src = match.group(2)
-            return f'<img src="{to_file_url(src) or src}" alt="{alt}">'
+            return f'<img src="{normalize_image_src(src) or src}" alt="{alt}">'
 
         # 处理img标签（兼容属性顺序）
         html_content = re.sub(r'<img[^>]*\bsrc="([^"]+)"[^>]*>', replace_img_tag, html_content)
@@ -343,21 +398,15 @@ def _convert_markdown_to_html(markdown_content):
         html = re.sub(r'`(.+?)`', r'<code>\1</code>', html)
 
         # 处理图片路径
-        from urllib.parse import unquote
-        config = get_config()
-        obsidian_path = config.get('obsidian_repo')
-
-        def to_file_url(src):
-            if not src.startswith('/api/image/'):
+        def normalize_image_src(src):
+            if not image_url_transform:
                 return None
-            image_path = unquote(src.replace('/api/image/', '', 1))
-            full_path = os.path.join(obsidian_path, image_path)
-            return f'file://{full_path.replace("\\", "/")}'
+            return image_url_transform(src)
 
         def replace_image_path(match):
             alt = match.group(1)
             src = match.group(2)
-            return f'<img src="{to_file_url(src) or src}" alt="{alt}">'
+            return f'<img src="{normalize_image_src(src) or src}" alt="{alt}">'
 
         # 转换图片
         html = re.sub(r'!\[([^\]]+)\]\(([^)]+)\)', replace_image_path, html)
@@ -526,37 +575,67 @@ def generate_lecture():
         if not safe_filename:
             safe_filename = f'lecture_{timestamp}'
 
+        # 保存目录
+        output_dir = config.get('output_dir')
+        if output_dir:
+            os.makedirs(output_dir, exist_ok=True)
+
+        lecture_dir = os.path.join(output_dir, safe_filename)
+        img_dir = os.path.join(lecture_dir, 'img')
+        os.makedirs(img_dir, exist_ok=True)
+
+        # 复制讲义中引用的图片
+        api_image_paths = _extract_api_image_paths(concat_result['lecture_content'])
+        _copy_images_to_output(obsidian_path, api_image_paths, img_dir)
+
+        def image_url_transform(src):
+            if not src.startswith('/api/image/'):
+                return None
+            rel_path = _normalize_image_relative_path(src)
+            if not rel_path:
+                return None
+            return f'img/{rel_path}'
+
         if format == 'html':
             # 生成HTML内容
-            html_content = _convert_markdown_to_html(concat_result['lecture_content'])
+            html_content = _convert_markdown_to_html(
+                concat_result['lecture_content'],
+                image_url_transform=image_url_transform
+            )
             filename = f'{safe_filename}.html'
             content_to_save = html_content
         else:
             # Markdown格式
             filename = f'{safe_filename}.md'
-            content_to_save = concat_result['lecture_content']
+            content_to_save = re.sub(
+                r'\((/api/image/[^)]+)\)',
+                lambda m: f'({image_url_transform(m.group(1)) or m.group(1)})',
+                concat_result['lecture_content']
+            )
 
-        # 保存文件
-        output_dir = config.get('output_dir')
-        if output_dir:
-            os.makedirs(output_dir, exist_ok=True)
-        output_path = os.path.join(output_dir, filename)
+        output_path = os.path.join(lecture_dir, filename)
 
         with open(output_path, 'w', encoding='utf-8') as f:
             f.write(content_to_save)
 
+        archive_path = os.path.join(output_dir, f'{safe_filename}.zip')
+        if os.path.exists(archive_path):
+            os.remove(archive_path)
+        import shutil
+        shutil.make_archive(os.path.splitext(archive_path)[0], 'zip', lecture_dir)
+
         return jsonify({
             'success': True,
-            'filename': filename,
+            'filename': f'{safe_filename}.zip',
             'files_included': concat_result['files_processed'],
             'file_count': len(files_data),
-            'size': os.path.getsize(output_path)
+            'size': os.path.getsize(archive_path)
         })
 
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/api/lecture/download/<filename>', methods=['GET'])
+@app.route('/api/lecture/download/<path:filename>', methods=['GET'])
 def download_lecture(filename):
     """下载生成的讲义文件"""
     config = get_config()
