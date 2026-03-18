@@ -22,6 +22,14 @@ CORS(app)  # 启用CORS
 # 初始化模块
 md_parser = MarkdownParser(clean_content=True)
 
+def _is_within_base_path(base_path, target_path):
+    try:
+        base = Path(base_path).resolve()
+        target = Path(target_path).resolve()
+        return os.path.commonpath([str(base), str(target)]) == str(base)
+    except Exception:
+        return False
+
 # 确保输出目录存在
 def init_output_directory(output_dir):
     """初始化输出目录"""
@@ -120,10 +128,10 @@ def get_image(relative_path):
 
     # 对URL编码的路径进行解码，处理包含空格等特殊字符的情况
     relative_path = unquote(relative_path)
-    base_path = os.path.abspath(obsidian_path)
-    target_path = os.path.abspath(os.path.join(obsidian_path, relative_path))
+    base_path = Path(obsidian_path)
+    target_path = Path(obsidian_path) / relative_path
 
-    if not (target_path == base_path or target_path.startswith(base_path + os.sep)):
+    if not _is_within_base_path(base_path, target_path):
         abort(403, description="访问被拒绝")
 
     if not os.path.isfile(target_path):
@@ -236,20 +244,6 @@ def _generate_simplified_lecture(files_data, include_toc=False):
         'total_files': len(files_data)
     }
 
-def _extract_api_image_paths(content):
-    """提取Markdown/HTML中的 /api/image/ 路径"""
-    image_paths = set()
-
-    md_pattern = re.compile(r'!\[[^\]]*\]\((/api/image/[^)]+)\)')
-    html_pattern = re.compile(r'<img[^>]*\bsrc="(/api/image/[^"]+)"[^>]*>')
-
-    for match in md_pattern.finditer(content):
-        image_paths.add(match.group(1))
-
-    for match in html_pattern.finditer(content):
-        image_paths.add(match.group(1))
-
-    return sorted(image_paths)
 
 def _normalize_image_relative_path(api_image_url):
     """将 /api/image/... 转为相对路径，防止路径穿越"""
@@ -270,31 +264,36 @@ def _normalize_image_relative_path(api_image_url):
 
     return normalized
 
-def _copy_images_to_output(obsidian_path, image_paths, image_output_dir):
-    """复制讲义中引用的图片到输出目录"""
-    import shutil
 
-    copied = []
-    for api_path in image_paths:
-        rel_path = _normalize_image_relative_path(api_path)
-        if not rel_path:
-            continue
+def _build_image_data_uri(obsidian_path, api_image_url):
+    """将 /api/image/... 转为 data URI"""
+    import base64
+    import mimetypes
 
-        source_path = os.path.abspath(os.path.join(obsidian_path, rel_path))
-        base_path = os.path.abspath(obsidian_path)
+    rel_path = _normalize_image_relative_path(api_image_url)
+    if not rel_path:
+        return None
 
-        if not (source_path == base_path or source_path.startswith(base_path + os.sep)):
-            continue
+    source_path = Path(obsidian_path) / rel_path
+    base_path = Path(obsidian_path)
 
-        if not os.path.isfile(source_path):
-            continue
+    if not _is_within_base_path(base_path, source_path):
+        return None
 
-        target_path = os.path.join(image_output_dir, rel_path)
-        os.makedirs(os.path.dirname(target_path), exist_ok=True)
-        shutil.copy2(source_path, target_path)
-        copied.append(rel_path)
+    if not source_path.is_file():
+        return None
 
-    return copied
+    mime_type, _ = mimetypes.guess_type(str(source_path))
+    if not mime_type:
+        mime_type = 'application/octet-stream'
+
+    try:
+        data = source_path.read_bytes()
+    except Exception:
+        return None
+
+    encoded = base64.b64encode(data).decode('ascii')
+    return f'data:{mime_type};base64,{encoded}'
 
 def _convert_markdown_to_html(markdown_content, image_url_transform=None):
     """将Markdown内容转换为HTML
@@ -593,21 +592,10 @@ def generate_lecture():
         if output_dir:
             os.makedirs(output_dir, exist_ok=True)
 
-        lecture_dir = os.path.join(output_dir, safe_filename)
-        img_dir = os.path.join(lecture_dir, 'img')
-        os.makedirs(img_dir, exist_ok=True)
-
-        # 复制讲义中引用的图片
-        api_image_paths = _extract_api_image_paths(concat_result['lecture_content'])
-        _copy_images_to_output(obsidian_path, api_image_paths, img_dir)
-
         def image_url_transform(src):
             if not src.startswith('/api/image/'):
                 return None
-            rel_path = _normalize_image_relative_path(src)
-            if not rel_path:
-                return None
-            return f'img/{rel_path}'
+            return _build_image_data_uri(obsidian_path, src)
 
         if format == 'html':
             # 生成HTML内容
@@ -620,29 +608,19 @@ def generate_lecture():
         else:
             # Markdown格式
             filename = f'{safe_filename}.md'
-            content_to_save = re.sub(
-                r'\((/api/image/[^)]+)\)',
-                lambda m: f'({image_url_transform(m.group(1)) or m.group(1)})',
-                concat_result['lecture_content']
-            )
+            content_to_save = concat_result['lecture_content']
 
-        output_path = os.path.join(lecture_dir, filename)
+        output_path = os.path.join(output_dir, filename)
 
         with open(output_path, 'w', encoding='utf-8') as f:
             f.write(content_to_save)
 
-        archive_path = os.path.join(output_dir, f'{safe_filename}.zip')
-        if os.path.exists(archive_path):
-            os.remove(archive_path)
-        import shutil
-        shutil.make_archive(os.path.splitext(archive_path)[0], 'zip', lecture_dir)
-
         return jsonify({
             'success': True,
-            'filename': f'{safe_filename}.zip',
+            'filename': filename,
             'files_included': concat_result['files_processed'],
             'file_count': len(files_data),
-            'size': os.path.getsize(archive_path)
+            'size': os.path.getsize(output_path)
         })
 
     except Exception as e:
@@ -653,18 +631,18 @@ def download_lecture(filename):
     """下载生成的讲义文件"""
     config = get_config()
     output_dir = config.get('output_dir')
-    file_path = os.path.join(output_dir, filename)
+    file_path = Path(output_dir) / filename
 
-    if not os.path.exists(file_path):
+    if not file_path.exists():
         abort(404, description="文件不存在")
 
     # 安全检查：确保文件在输出目录中
-    if not os.path.abspath(file_path).startswith(os.path.abspath(output_dir)):
+    if not _is_within_base_path(output_dir, file_path):
         abort(403, description="访问被拒绝")
 
     try:
         return send_file(
-            file_path,
+            str(file_path),
             as_attachment=True,
             download_name=filename
         )

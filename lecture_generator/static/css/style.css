@@ -77,7 +77,7 @@ body {
 /* ===== 主内容区 ===== */
 .main-content {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: 2fr 1.7fr 3.3fr;
     gap: 20px;
     flex: 1;
     margin-bottom: 20px;

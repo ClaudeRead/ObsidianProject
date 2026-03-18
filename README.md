@@ -9,6 +9,7 @@
 - **配置简单**：开箱即用，只需配置Obsidian路径
 - **用户体验优秀**：直观的Web界面，实时预览功能
 - **开发维护简单**：清晰的代码结构，易于扩展
+- **多系统适配**：支持 Windows / Linux / macOS，路径与配置跨平台一致
 
 ## ✨ 核心功能
 
@@ -38,12 +39,24 @@
    ```
 
 2. **检查配置**
-   - 确保 `config.json` 中的 `obsidian_repo` 正确指向您的Obsidian仓库
-   - 默认路径为 `../obsidian_repo`
+   - `config.json` 使用相对路径，可在 Windows / Linux / macOS 通用
+   - 你也可以用环境变量覆盖：`OBSIDIAN_REPO` 和 `OUTPUT_DIR`
 
 3. **启动应用**
    ```bash
-   python app.py
+   python run.py
+   ```
+
+   **Linux/macOS 示例（使用环境变量覆盖路径）**
+   ```bash
+   export OBSIDIAN_REPO="/path/to/obsidian_repo"
+   export OUTPUT_DIR="/path/to/output"
+   python run.py
+   ```
+
+   **Linux/macOS 一行启动**
+   ```bash
+   OBSIDIAN_REPO="/path/to/obsidian_repo" OUTPUT_DIR="/path/to/output" python run.py
    ```
 
 4. **访问界面**
@@ -59,6 +72,7 @@
 ## 🗂️ 项目结构
 
 ```
+run.py                    # 启动脚本
 lecture_generator/
 ├── app.py                 # 主应用程序（Flask）
 ├── config.json            # 配置文件
@@ -82,8 +96,8 @@ lecture_generator/
 - **后端**：Python 3.6+，Flask框架
 - **前端**：HTML5，CSS3，JavaScript
 - **依赖**：
-  - Flask：Web框架
-  - Flask-CORS：跨域支持
+   - Flask：Web框架
+   - Flask-CORS：跨域支持
    - markdown：Markdown解析
 
 ## 🔧 配置说明
@@ -92,10 +106,15 @@ lecture_generator/
 
 ```json
 {
-   "obsidian_repo": "路径/到/obsidian_repo",
-   "output_dir": "路径/到/output",
+   "obsidian_repo": "../obsidian_repo",
+   "output_dir": "./output",
    "markdown_extensions": [".md", ".markdown"]
 }
+
+可选环境变量覆盖：
+
+- `OBSIDIAN_REPO`：Obsidian仓库绝对路径或相对路径
+- `OUTPUT_DIR`：输出目录绝对路径或相对路径
 ```
 
 ## 🐛 故障排除
@@ -109,10 +128,10 @@ lecture_generator/
    ```
 
 2. **端口被占用**
-   修改启动命令中的端口或使用环境变量覆盖
+   修改启动命令中的端口或在 `config.json` 中添加 `port`
 
 3. **无法找到Obsidian仓库**
-   检查 `config.json` 中的 `obsidian_repo` 路径是否正确
+   检查 `config.json` 中的 `obsidian_repo` 是否正确，或使用 `OBSIDIAN_REPO` 环境变量覆盖
 
 4. **中文字符乱码**
    确保Obsidian文件使用UTF-8编码保存

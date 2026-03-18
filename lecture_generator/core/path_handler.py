@@ -6,6 +6,7 @@
 """
 
 import json
+import os
 from pathlib import Path
 from typing import Tuple, Optional, Dict, Any
 
@@ -26,19 +27,54 @@ class PathHandler:
             'markdown_extensions': ['.md', '.markdown']
         }
 
+    def _normalize_path(self, path_value: Optional[str]) -> Optional[str]:
+        if not path_value:
+            return None
+
+        expanded = os.path.expandvars(os.path.expanduser(str(path_value)))
+        path_obj = Path(expanded)
+
+        if not path_obj.is_absolute():
+            path_obj = (self.config_file.parent / path_obj).resolve()
+        else:
+            path_obj = path_obj.resolve()
+
+        return str(path_obj)
+
     def load_config(self) -> Dict[str, Any]:
         """加载配置文件
 
         Returns:
             dict: 配置字典
         """
+        config = self.default_config.copy()
+
         if self.config_file.exists():
             try:
                 with open(self.config_file, 'r', encoding='utf-8') as f:
-                    return json.load(f)
+                    loaded = json.load(f)
+                if isinstance(loaded, dict):
+                    config.update(loaded)
             except (json.JSONDecodeError, IOError):
                 pass
-        return self.default_config.copy()
+
+        env_repo = os.getenv('OBSIDIAN_REPO')
+        env_output = os.getenv('OUTPUT_DIR')
+        if env_repo:
+            config['obsidian_repo'] = env_repo
+        if env_output:
+            config['output_dir'] = env_output
+
+        config['obsidian_repo'] = self._normalize_path(config.get('obsidian_repo'))
+        config['output_dir'] = self._normalize_path(config.get('output_dir'))
+
+        if config.get('obsidian_repo') and not Path(config['obsidian_repo']).exists():
+            config['obsidian_repo'] = self._normalize_path(self.default_config['obsidian_repo'])
+
+        if not config.get('output_dir'):
+            config['output_dir'] = self._normalize_path(self.default_config['output_dir'])
+
+        return config
 
     def save_config(self, config: Dict[str, Any]) -> bool:
         """保存配置文件
@@ -67,6 +103,8 @@ class PathHandler:
             bool: 更新是否成功
         """
         config = self.load_config()
+        if key in {'obsidian_repo', 'output_dir'}:
+            value = self._normalize_path(value)
         config[key] = value
         return self.save_config(config)
 
@@ -80,7 +118,11 @@ class PathHandler:
         Returns:
             tuple: (是否有效, 错误信息)
         """
-        path_obj = Path(path)
+        normalized = self._normalize_path(path)
+        if not normalized:
+            return False, "路径不存在"
+
+        path_obj = Path(normalized)
 
         # 检查路径是否存在
         if not path_obj.exists():
