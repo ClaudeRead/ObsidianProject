@@ -14,11 +14,13 @@ from typing import Dict, Optional
 class MarkdownParser:
     """Markdown解析器"""
 
-    def __init__(self, clean_content: bool = True):
+    def __init__(self, clean_content: bool = True, obsidian_root: Optional[str] = None):
         self.clean_content = clean_content
+        self.obsidian_root = Path(obsidian_root).resolve() if obsidian_root else None
 
     def parse_file(self, file_path: str, filename: Optional[str] = None,
-                   show_analysis: bool = True, show_notes: bool = True) -> Dict[str, str]:
+                   show_analysis: bool = True, show_notes: bool = True,
+                   obsidian_root: Optional[str] = None) -> Dict[str, str]:
         file_path_obj = Path(file_path)
 
         if not file_path_obj.exists():
@@ -27,21 +29,32 @@ class MarkdownParser:
         if filename is None:
             filename = file_path_obj.name
 
+        # 获取文件所在目录
+        file_dir = str(file_path_obj.parent)
+
         try:
             with open(file_path_obj, 'r', encoding='utf-8') as f:
                 content = f.read()
 
-            return self.parse_content(content, filename, show_analysis, show_notes)
+            return self.parse_content(
+                content,
+                filename,
+                file_dir,
+                show_analysis,
+                show_notes,
+                obsidian_root=obsidian_root
+            )
 
         except Exception as e:
             return {'error': f'读取文件失败: {str(e)}'}
 
-    def parse_content(self, content: str, filename: str,
-                      show_analysis: bool = True, show_notes: bool = True) -> Dict[str, str]:
+    def parse_content(self, content: str, filename: str, file_dir: str,
+                      show_analysis: bool = True, show_notes: bool = True,
+                      obsidian_root: Optional[str] = None) -> Dict[str, str]:
         parsed_content = content
 
         if self.clean_content:
-            parsed_content = self._clean_content(parsed_content, filename)
+            parsed_content = self._clean_content(parsed_content, filename, file_dir, obsidian_root)
 
         if not show_analysis:
             parsed_content = self._remove_section(parsed_content, '【解析】')
@@ -71,11 +84,12 @@ class MarkdownParser:
 
         return None
 
-    def _clean_content(self, content: str, filename: str) -> str:
+    def _clean_content(self, content: str, filename: str, file_dir: str,
+                       obsidian_root: Optional[str] = None) -> str:
         cleaned = content
 
-        cleaned = self._rewrite_obsidian_images(cleaned)
-        cleaned = self._rewrite_markdown_images(cleaned)
+        cleaned = self._rewrite_obsidian_images(cleaned, file_dir, obsidian_root)
+        cleaned = self._rewrite_markdown_images(cleaned, file_dir, obsidian_root)
 
         internal_link_pattern = re.compile(r'(?<!\!)\[\[([^\]]+?\.md)(?:#([^\]]+))?(?:\|([^\]]+))?\]\]')
 
@@ -125,17 +139,49 @@ class MarkdownParser:
         normalized = self._normalize_image_path(image_path)
         return f'/api/image/{quote(normalized, safe="/")}'
 
-    def _rewrite_obsidian_images(self, content: str) -> str:
+    def _resolve_obsidian_root(self, file_dir: str, obsidian_root: Optional[str]) -> Optional[Path]:
+        if obsidian_root:
+            root = Path(obsidian_root)
+            if root.exists():
+                return root.resolve()
+
+        if self.obsidian_root and self.obsidian_root.exists():
+            return self.obsidian_root
+
+        # Fallback: detect Obsidian vault by .obsidian folder
+        current = Path(file_dir).resolve()
+        for parent in [current] + list(current.parents):
+            if (parent / '.obsidian').exists():
+                return parent
+
+        return None
+
+    def _relative_to_root(self, image_path: Path, obsidian_root: Optional[Path]) -> Optional[str]:
+        if not obsidian_root:
+            return None
+        try:
+            return image_path.resolve().relative_to(obsidian_root.resolve()).as_posix()
+        except ValueError:
+            return None
+
+    def _rewrite_obsidian_images(self, content: str, file_dir: str,
+                                 obsidian_root: Optional[str]) -> str:
         pattern = re.compile(r'!\[\[([^\]|]+)(?:\|([^\]]+))?\]\]')
 
         def replace_image(match):
             path = match.group(1).strip()
             alt = match.group(2) or Path(path).stem
-            return f'![{alt}]({self._image_url(path)})'
+            image_path = Path(file_dir) / path
+            root = self._resolve_obsidian_root(file_dir, obsidian_root)
+            normalized_path = self._relative_to_root(image_path, root)
+            if not normalized_path:
+                normalized_path = str(image_path).replace('\\', '/')
+            return f'![{alt}]({self._image_url(normalized_path)})'
 
         return pattern.sub(replace_image, content)
 
-    def _rewrite_markdown_images(self, content: str) -> str:
+    def _rewrite_markdown_images(self, content: str, file_dir: str,
+                                 obsidian_root: Optional[str]) -> str:
         pattern = re.compile(r'!\[([^\]]*)\]\(([^)]+)\)')
 
         def replace_image(match):
@@ -145,7 +191,12 @@ class MarkdownParser:
             if re.match(r'^[a-zA-Z]+:', url) or url.startswith('/'):
                 return match.group(0)
 
-            return f'![{alt_text}]({self._image_url(url)})'
+            image_path = Path(file_dir) / url
+            root = self._resolve_obsidian_root(file_dir, obsidian_root)
+            normalized_path = self._relative_to_root(image_path, root)
+            if not normalized_path:
+                normalized_path = str(image_path).replace('\\', '/')
+            return f'![{alt_text}]({self._image_url(normalized_path)})'
 
         return pattern.sub(replace_image, content)
 

@@ -111,12 +111,15 @@ def search_files():
 @app.route('/api/image/<path:relative_path>', methods=['GET'])
 def get_image(relative_path):
     """提供Obsidian仓库内图片访问"""
+    from urllib.parse import unquote
     config = get_config()
     obsidian_path = config.get('obsidian_repo')
 
     if not obsidian_path:
         abort(404, description="图片不存在")
 
+    # 对URL编码的路径进行解码，处理包含空格等特殊字符的情况
+    relative_path = unquote(relative_path)
     base_path = os.path.abspath(obsidian_path)
     target_path = os.path.abspath(os.path.join(obsidian_path, relative_path))
 
@@ -491,7 +494,12 @@ def preview_lecture():
             full_path = os.path.join(obsidian_path, file_path)
 
             # 解析文件
-            result = md_parser.parse_file(full_path, show_analysis=show_analysis, show_notes=show_notes)
+            result = md_parser.parse_file(
+                full_path,
+                show_analysis=show_analysis,
+                show_notes=show_notes,
+                obsidian_root=obsidian_path
+            )
 
             if 'error' not in result:
                 files_data.append({
@@ -544,7 +552,12 @@ def generate_lecture():
             full_path = os.path.join(obsidian_path, file_path)
 
             # 解析文件
-            result = md_parser.parse_file(full_path, show_analysis=show_analysis, show_notes=show_notes)
+            result = md_parser.parse_file(
+                full_path,
+                show_analysis=show_analysis,
+                show_notes=show_notes,
+                obsidian_root=obsidian_path
+            )
 
             if 'error' not in result:
                 files_data.append({
