@@ -37,5 +37,5 @@ if __name__ == '__main__':
     app.run(
         host=config.get('host', '127.0.0.1'),
         port=config.get('port', 5000),
-        debug=config.get('debug', True)
+        debug=config.get('debug', False)
     )

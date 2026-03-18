@@ -9,7 +9,6 @@ import os
 import re
 from pathlib import Path
 from flask import Flask, render_template, request, jsonify, send_file, abort
-from flask_cors import CORS
 
 # 导入核心模块
 from core.path_handler import validate_path, get_config, update_config
@@ -17,7 +16,6 @@ from core.md_parser import MarkdownParser
 
 # 初始化Flask应用
 app = Flask(__name__)
-CORS(app)  # 启用CORS
 
 # 初始化模块
 md_parser = MarkdownParser(clean_content=True)
@@ -167,7 +165,6 @@ def _scan_directory(current_path, relative_path, structure, config):
                 'type': 'directory',
                 'name': item,
                 'path': relative_item_path,
-                'full_path': item_path,
                 'children': [],
                 'expanded': False
             })
@@ -182,7 +179,6 @@ def _scan_directory(current_path, relative_path, structure, config):
                 'type': 'file',
                 'name': item,
                 'path': relative_item_path,
-                'full_path': item_path,
                 'size': os.path.getsize(item_path)
             })
 
@@ -309,6 +305,7 @@ def _convert_markdown_to_html(markdown_content, image_url_transform=None):
         # 创建Markdown转换器
         md = markdown.Markdown(extensions=['extra', 'codehilite', 'toc'])
         html_content = md.convert(markdown_content)
+        html_content = _sanitize_html(html_content)
 
         # 处理图片路径，确保在生成的HTML中也能正确显示
         import re
@@ -437,6 +434,7 @@ def _convert_markdown_to_html(markdown_content, image_url_transform=None):
             result_lines.append('</ul>')
 
         html = '\n'.join(result_lines)
+        html = _sanitize_html(html)
 
         # 包装成完整HTML文档
         simple_html = f'''<!DOCTYPE html>
@@ -472,6 +470,16 @@ def _convert_markdown_to_html(markdown_content, image_url_transform=None):
 </html>'''
 
         return simple_html
+
+def _sanitize_html(html_content):
+    """最小化清理HTML，移除脚本与危险属性"""
+    if not html_content:
+        return html_content
+
+    cleaned = re.sub(r'<\s*script[^>]*>.*?<\s*/\s*script\s*>', '', html_content, flags=re.IGNORECASE | re.DOTALL)
+    cleaned = re.sub(r'\son\w+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)', '', cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r'\s(href|src)\s*=\s*(["\'])\s*javascript:[^\2]*\2', '', cleaned, flags=re.IGNORECASE)
+    return cleaned
 
 @app.route('/api/lecture/preview', methods=['POST'])
 def preview_lecture():
@@ -719,5 +727,5 @@ if __name__ == '__main__':
     app.run(
         host=config.get('host', '0.0.0.0'),
         port=config.get('port', 5000),
-        debug=config.get('debug', True)
+        debug=config.get('debug', False)
     )

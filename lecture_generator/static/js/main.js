@@ -661,9 +661,13 @@ class LectureGeneratorApp {
                 gfm: true,
                 headerIds: true
             });
-            previewContent.innerHTML = htmlContent;
+            if (typeof DOMPurify !== 'undefined') {
+                previewContent.innerHTML = DOMPurify.sanitize(htmlContent);
+            } else {
+                previewContent.textContent = content;
+            }
         } else {
-            previewContent.innerHTML = `<pre>${content}</pre>`;
+            previewContent.textContent = content;
         }
     }
 
