@@ -48,22 +48,22 @@ def get_directory():
     """获取Obsidian仓库的目录结构"""
     try:
         config = get_config()
-        obsidian_path = config.get('obsidian_repo')
+        knowledge_base_path = config.get('knowledge_base')
 
-        if not os.path.exists(obsidian_path):
+        if not os.path.exists(knowledge_base_path):
             return jsonify({
                 'success': False,
-                'error': f'Obsidian仓库路径不存在: {obsidian_path}'
+                'error': f'知识库路径不存在: {knowledge_base_path}'
             }), 404
 
         # 扫描目录结构
         structure = []
-        _scan_directory(obsidian_path, '', structure, config)
+        _scan_directory(knowledge_base_path, '', structure, config)
 
         return jsonify({
             'success': True,
             'structure': structure,
-            'obsidian_repo': obsidian_path
+            'knowledge_base': knowledge_base_path
         })
     except Exception as e:
         return jsonify({
@@ -82,22 +82,22 @@ def search_files():
         return jsonify({'success': True, 'results': [], 'count': 0})
 
     config = get_config()
-    obsidian_path = config.get('obsidian_repo')
+    knowledge_base_path = config.get('knowledge_base')
     extensions = config.get('markdown_extensions', ['.md', '.markdown'])
 
-    if not obsidian_path or not os.path.exists(obsidian_path):
+    if not knowledge_base_path or not os.path.exists(knowledge_base_path):
         return jsonify({'success': False, 'error': '仓库路径不存在'}), 404
 
     keyword_lower = keyword.lower()
     results = []
 
-    for root, _, files in os.walk(obsidian_path):
+    for root, _, files in os.walk(knowledge_base_path):
         for filename in files:
             if not any(filename.lower().endswith(ext) for ext in extensions):
                 continue
 
             full_path = os.path.join(root, filename)
-            rel_path = os.path.relpath(full_path, obsidian_path).replace('\\', '/')
+            rel_path = os.path.relpath(full_path, knowledge_base_path).replace('\\', '/')
 
             if search_type == 'filename':
                 if keyword_lower in filename.lower():
@@ -119,15 +119,15 @@ def get_image(relative_path):
     """提供Obsidian仓库内图片访问"""
     from urllib.parse import unquote
     config = get_config()
-    obsidian_path = config.get('obsidian_repo')
+    knowledge_base_path = config.get('knowledge_base')
 
-    if not obsidian_path:
+    if not knowledge_base_path:
         abort(404, description="图片不存在")
 
     # 对URL编码的路径进行解码，处理包含空格等特殊字符的情况
     relative_path = unquote(relative_path)
-    base_path = Path(obsidian_path)
-    target_path = Path(obsidian_path) / relative_path
+    base_path = Path(knowledge_base_path)
+    target_path = Path(knowledge_base_path) / relative_path
 
     if not _is_within_base_path(base_path, target_path):
         abort(403, description="访问被拒绝")
@@ -261,7 +261,7 @@ def _normalize_image_relative_path(api_image_url):
     return normalized
 
 
-def _build_image_data_uri(obsidian_path, api_image_url):
+def _build_image_data_uri(knowledge_base_path, api_image_url):
     """将 /api/image/... 转为 data URI"""
     import base64
     import mimetypes
@@ -270,8 +270,8 @@ def _build_image_data_uri(obsidian_path, api_image_url):
     if not rel_path:
         return None
 
-    source_path = Path(obsidian_path) / rel_path
-    base_path = Path(obsidian_path)
+    source_path = Path(knowledge_base_path) / rel_path
+    base_path = Path(knowledge_base_path)
 
     if not _is_within_base_path(base_path, source_path):
         return None
@@ -494,18 +494,18 @@ def preview_lecture():
 
     try:
         config = get_config()
-        obsidian_path = config.get('obsidian_repo')
+        knowledge_base_path = config.get('knowledge_base')
         files_data = []
 
         for file_path in file_paths:
-            full_path = os.path.join(obsidian_path, file_path)
+            full_path = os.path.join(knowledge_base_path, file_path)
 
             # 解析文件
             result = md_parser.parse_file(
                 full_path,
                 show_analysis=show_analysis,
                 show_notes=show_notes,
-                obsidian_root=obsidian_path
+                obsidian_root=knowledge_base_path
             )
 
             if 'error' not in result:
@@ -552,18 +552,18 @@ def generate_lecture():
 
     try:
         config = get_config()
-        obsidian_path = config.get('obsidian_repo')
+        knowledge_base_path = config.get('knowledge_base')
         files_data = []
 
         for file_path in file_paths:
-            full_path = os.path.join(obsidian_path, file_path)
+            full_path = os.path.join(knowledge_base_path, file_path)
 
             # 解析文件
             result = md_parser.parse_file(
                 full_path,
                 show_analysis=show_analysis,
                 show_notes=show_notes,
-                obsidian_root=obsidian_path
+                obsidian_root=knowledge_base_path
             )
 
             if 'error' not in result:
@@ -590,7 +590,7 @@ def generate_lecture():
         safe_filename = ''
         if filename_input:
             base_name = os.path.splitext(os.path.basename(filename_input))[0]
-            safe_filename = re.sub(r'[^A-Za-z0-9_-]+', '_', base_name).strip('_')
+            safe_filename = re.sub(r'[<>:"/\\|?*\x00-\x1f]+', '_', base_name).strip(' ._')
 
         if not safe_filename:
             safe_filename = f'lecture_{timestamp}'
@@ -603,7 +603,7 @@ def generate_lecture():
         def image_url_transform(src):
             if not src.startswith('/api/image/'):
                 return None
-            return _build_image_data_uri(obsidian_path, src)
+            return _build_image_data_uri(knowledge_base_path, src)
 
         if format == 'html':
             # 生成HTML内容
@@ -670,10 +670,10 @@ def validate_config():
     """验证配置路径"""
     try:
         data = request.json
-        if not data or 'obsidian_repo' not in data:
+        if not data or 'knowledge_base' not in data:
             return jsonify({'success': False, 'error': '缺少路径参数'}), 400
 
-        is_valid, message = validate_path(data['obsidian_repo'])
+        is_valid, message = validate_path(data['knowledge_base'])
         return jsonify({
             'success': True,
             'is_valid': is_valid,
@@ -683,21 +683,41 @@ def validate_config():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/api/config/browse', methods=['POST'])
+def browse_config_path():
+    """打开系统目录选择对话框"""
+    try:
+        import tkinter as tk
+        from tkinter import filedialog
+
+        root = tk.Tk()
+        root.withdraw()
+        root.attributes('-topmost', True)
+        selected = filedialog.askdirectory()
+        root.destroy()
+
+        if not selected:
+            return jsonify({'success': False, 'error': '已取消选择'}), 400
+
+        return jsonify({'success': True, 'path': selected})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/config/update', methods=['POST'])
 def update_config_api():
     """更新配置信息"""
     try:
         data = request.json
-        if not data or 'obsidian_repo' not in data:
+        if not data or 'knowledge_base' not in data:
             return jsonify({'success': False, 'error': '缺少必要参数'}), 400
 
         # 验证路径
-        is_valid, message = validate_path(data['obsidian_repo'])
+        is_valid, message = validate_path(data['knowledge_base'])
         if not is_valid:
             return jsonify({'success': False, 'error': message}), 400
 
         # 更新配置
-        success = update_config('obsidian_repo', data['obsidian_repo'])
+        success = update_config('knowledge_base', data['knowledge_base'])
         if success:
             return jsonify({'success': True, 'message': '配置已更新'})
         else:

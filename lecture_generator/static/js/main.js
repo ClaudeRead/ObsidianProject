@@ -23,6 +23,20 @@ class LectureGeneratorApp {
         this.updateStatusPills();
     }
 
+    iconMarkup(name, className = '') {
+        const classAttr = ['icon', className].filter(Boolean).join(' ');
+        return `<svg class="${classAttr}"><use href="#${name}"></use></svg>`;
+    }
+
+    createIcon(name, className = '') {
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('class', ['icon', className].filter(Boolean).join(' '));
+        const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+        use.setAttribute('href', `#${name}`);
+        svg.appendChild(use);
+        return svg;
+    }
+
     /**
      * 初始化 DOM 元素
      */
@@ -57,7 +71,7 @@ class LectureGeneratorApp {
             pathInput: document.getElementById('path-input'),
             browsePathBtn: document.getElementById('browse-path-btn'),
             confirmPathBtn: document.getElementById('confirm-path-btn'),
-            cancelPathBtn: document.getElementById('cancel-path-btn'),
+            cancelPathBtns: document.querySelectorAll('.js-cancel-path, .modal-close'),
             pathValidation: document.getElementById('path-validation'),
 
             // 状态和计数
@@ -76,7 +90,7 @@ class LectureGeneratorApp {
             downloadFilename: document.getElementById('download-filename'),
             downloadFilecount: document.getElementById('download-filecount'),
             downloadBtn: document.getElementById('download-btn'),
-            closeModalBtn: document.getElementById('close-modal'),
+            closeModalBtns: document.querySelectorAll('.js-close-download, .modal-close'),
 
             // 生成选项对话框
             openGenerateModalBtn: document.getElementById('open-generate-modal'),
@@ -86,7 +100,7 @@ class LectureGeneratorApp {
             modalIncludeToc: document.getElementById('modal-include-toc'),
             modalFormat: document.getElementById('modal-format'),
             modalFilename: document.getElementById('modal-filename'),
-            cancelGenerateBtn: document.getElementById('cancel-generate'),
+            cancelGenerateBtns: document.querySelectorAll('.js-cancel-generate, .modal-close'),
             confirmGenerateBtn: document.getElementById('confirm-generate')
         };
     }
@@ -111,21 +125,27 @@ class LectureGeneratorApp {
         this.elements.selectPathBtn.addEventListener('click', () => this.showPathSelector());
         this.elements.browsePathBtn.addEventListener('click', () => this.browseFolder());
         this.elements.confirmPathBtn.addEventListener('click', () => this.confirmPathSelection());
-        this.elements.cancelPathBtn.addEventListener('click', () => this.hidePathModal());
+        this.elements.cancelPathBtns.forEach((btn) => {
+            btn.addEventListener('click', () => this.hidePathModal());
+        });
 
         // 路径输入验证
         this.elements.pathInput.addEventListener('input', () => this.validatePathInput());
 
         // 生成选项对话框
         this.elements.openGenerateModalBtn.addEventListener('click', () => this.showGenerateModal());
-        this.elements.cancelGenerateBtn.addEventListener('click', () => this.hideGenerateModal());
+        this.elements.cancelGenerateBtns.forEach((btn) => {
+            btn.addEventListener('click', () => this.hideGenerateModal());
+        });
         this.elements.confirmGenerateBtn.addEventListener('click', () => this.confirmGenerate());
         this.elements.copyPreviewBtn.addEventListener('click', () => this.copyPreview());
         this.elements.clearPreviewBtn.addEventListener('click', () => this.clearPreview());
 
         // 下载对话框
         this.elements.downloadBtn.addEventListener('click', () => this.downloadGeneratedFile());
-        this.elements.closeModalBtn.addEventListener('click', () => this.hideModal());
+        this.elements.closeModalBtns.forEach((btn) => {
+            btn.addEventListener('click', () => this.hideModal());
+        });
 
         // 点击模态框外部关闭
         this.elements.downloadModal.addEventListener('click', (e) => {
@@ -277,7 +297,7 @@ class LectureGeneratorApp {
             return `
                 <div class="file-item" data-path="${result.path}">
                     <input type="checkbox" class="file-checkbox" ${isSelected ? 'checked' : ''}>
-                    <i class="fas fa-file-alt"></i>
+                    ${this.iconMarkup('icon-file')}
                     <span class="file-name">${fileName}</span>
                     <span class="file-path">${pathParts.join('/')}</span>
                 </div>
@@ -356,11 +376,10 @@ class LectureGeneratorApp {
                 const header = document.createElement('div');
                 header.className = 'tree-header';
                 
-                const icon = document.createElement('i');
-                icon.className = 'fas fa-caret-right';
+                const icon = this.createIcon('icon-caret-right', 'icon-fill icon-caret');
+                const iconUse = icon.querySelector('use');
                 
-                const folderIcon = document.createElement('i');
-                folderIcon.className = 'fas fa-folder';
+                const folderIcon = this.createIcon('icon-folder');
                 folderIcon.style.marginRight = '8px';
                 folderIcon.style.color = '#f39c12';
                 
@@ -387,13 +406,15 @@ class LectureGeneratorApp {
                     if (isExpanded) {
                         // 折叠
                         childrenContainer.style.display = 'none';
-                        icon.classList.remove('fa-caret-down');
-                        icon.classList.add('fa-caret-right');
+                        if (iconUse) {
+                            iconUse.setAttribute('href', '#icon-caret-right');
+                        }
                     } else {
                         // 展开
                         childrenContainer.style.display = 'block';
-                        icon.classList.remove('fa-caret-right');
-                        icon.classList.add('fa-caret-down');
+                        if (iconUse) {
+                            iconUse.setAttribute('href', '#icon-caret-down');
+                        }
                     }
                 });
                 
@@ -418,8 +439,7 @@ class LectureGeneratorApp {
                 checkbox.className = 'file-checkbox';
                 checkbox.checked = isSelected;
                 
-                const fileIcon = document.createElement('i');
-                fileIcon.className = 'fas fa-file-alt';
+                const fileIcon = this.createIcon('icon-file');
                 
                 const nameSpan = document.createElement('span');
                 nameSpan.className = 'file-name';
@@ -490,12 +510,12 @@ class LectureGeneratorApp {
             row.className = 'selected-item';
             row.dataset.path = item.path;
             row.innerHTML = `
-                <i class="fas fa-file-alt"></i>
+                ${this.iconMarkup('icon-file')}
                 <span>${item.name}</span>
                 <div class="order-controls">
                     <button class="order-btn" data-action="up">▲</button>
                     <button class="order-btn" data-action="down">▼</button>
-                    <i class="fas fa-times remove-btn"></i>
+                    <span class="remove-btn">${this.iconMarkup('icon-close')}</span>
                 </div>
             `;
 
@@ -677,7 +697,7 @@ class LectureGeneratorApp {
     clearPreview() {
         this.elements.previewContent.innerHTML = `
             <div class="empty-preview">
-                <i class="fas fa-file-alt" style="font-size: 3rem; margin-bottom: 20px;"></i>
+                ${this.iconMarkup('icon-file', 'icon-lg icon-muted')}
                 <p>预览将显示在这里</p>
                 <p class="small-text">选择文件并点击"预览讲义"按钮</p>
             </div>
@@ -778,7 +798,7 @@ class LectureGeneratorApp {
             const data = await response.json();
 
             if (data.success) {
-                this.elements.currentPath.textContent = data.config.obsidian_repo;
+                this.elements.currentPath.textContent = data.config.knowledge_base;
                 return data.config;
             }
         } catch (error) {
@@ -790,7 +810,7 @@ class LectureGeneratorApp {
     showPathSelector() {
         this.loadConfig().then(config => {
             if (config) {
-                this.elements.pathInput.value = config.obsidian_repo;
+                this.elements.pathInput.value = config.knowledge_base;
                 this.elements.pathInput.readOnly = false;
                 this.validatePathInput();
             }
@@ -799,28 +819,32 @@ class LectureGeneratorApp {
     }
 
     hidePathModal() {
-        this.elements.pathModal.style.display = 'none';
-        this.elements.pathValidation.textContent = '';
-        this.elements.confirmPathBtn.disabled = true;
+        // 确保模态框能正确关闭
+        if (this.elements.pathModal) {
+            this.elements.pathModal.style.display = 'none';
+            this.elements.pathValidation.textContent = '';
+            this.elements.confirmPathBtn.disabled = true;
+        }
     }
 
-    browseFolder() {
-        const directoryInput = document.createElement('input');
-        directoryInput.type = 'file';
-        directoryInput.webkitdirectory = true;
-        directoryInput.directory = true;
-        directoryInput.multiple = false;
+    async browseFolder() {
+        try {
+            const response = await fetch('/api/config/browse', { method: 'POST' });
+            const data = await response.json();
 
-        directoryInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                const firstFile = e.target.files[0];
-                const path = firstFile.webkitRelativePath.split('/')[0];
-                this.elements.pathInput.value = path || firstFile.path || '';
+            if (data.success && data.path) {
+                this.elements.pathInput.value = data.path;
                 this.validatePathInput();
+                return;
             }
-        });
 
-        directoryInput.click();
+            if (data.error && data.error !== '已取消选择') {
+                this.showMessage(`选择失败：${data.error}`, 'error');
+            }
+        } catch (error) {
+            console.error('浏览目录失败:', error);
+            this.showMessage('浏览失败，请手动输入路径', 'error');
+        }
     }
 
     /**
@@ -844,7 +868,7 @@ class LectureGeneratorApp {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ obsidian_repo: path })
+                body: JSON.stringify({ knowledge_base: path })
             });
 
             const data = await response.json();
@@ -885,7 +909,7 @@ class LectureGeneratorApp {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ obsidian_repo: path })
+                body: JSON.stringify({ knowledge_base: path })
             });
 
             const data = await response.json();
@@ -914,15 +938,14 @@ class LectureGeneratorApp {
      */
     collapseAll() {
         const allChildren = this.elements.fileTree.querySelectorAll('.tree-children');
-        const allIcons = this.elements.fileTree.querySelectorAll('.fa-caret-down');
+        const allIcons = this.elements.fileTree.querySelectorAll('.icon-caret use');
         
         allChildren.forEach(children => {
             children.style.display = 'none';
         });
         
         allIcons.forEach(icon => {
-            icon.classList.remove('fa-caret-down');
-            icon.classList.add('fa-caret-right');
+            icon.setAttribute('href', '#icon-caret-right');
         });
     }
 
@@ -931,15 +954,14 @@ class LectureGeneratorApp {
      */
     expandAll() {
         const allChildren = this.elements.fileTree.querySelectorAll('.tree-children');
-        const allIcons = this.elements.fileTree.querySelectorAll('.fa-caret-right');
+        const allIcons = this.elements.fileTree.querySelectorAll('.icon-caret use');
         
         allChildren.forEach(children => {
             children.style.display = 'block';
         });
         
         allIcons.forEach(icon => {
-            icon.classList.remove('fa-caret-right');
-            icon.classList.add('fa-caret-down');
+            icon.setAttribute('href', '#icon-caret-down');
         });
     }
 }

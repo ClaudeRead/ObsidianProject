@@ -7,6 +7,7 @@
 
 import json
 import os
+import sys
 from pathlib import Path
 from typing import Tuple, Optional, Dict, Any
 
@@ -20,12 +21,33 @@ class PathHandler:
         Args:
             config_file: 配置文件路径，如果为None则使用默认路径
         """
-        self.config_file = Path(config_file) if config_file else Path(__file__).parent.parent / 'config.json'
-        self.default_config = {
-            'obsidian_repo': str(Path(__file__).parent.parent.parent / 'obsidian_repo'),
-            'output_dir': str(Path(__file__).parent.parent / 'output'),
-            'markdown_extensions': ['.md', '.markdown']
-        }
+        self.config_file = self._resolve_config_path(config_file)
+        if getattr(sys, 'frozen', False):
+            user_base = Path.home() / '.knowledge_base_lecturer'
+            self.default_config = {
+                'knowledge_base': str(Path.home() / 'knowledge_base'),
+                'output_dir': str(user_base / 'output'),
+                'markdown_extensions': ['.md', '.markdown']
+            }
+        else:
+            self.default_config = {
+                'knowledge_base': str(Path(__file__).parent.parent.parent / 'knowledge_base'),
+                'output_dir': str(Path(__file__).parent.parent / 'output'),
+                'markdown_extensions': ['.md', '.markdown']
+            }
+
+    def _resolve_config_path(self, config_file: Optional[str]) -> Path:
+        if config_file:
+            return Path(config_file)
+
+        if getattr(sys, 'frozen', False):
+            exe_dir = Path(sys.executable).resolve().parent
+            local_config = exe_dir / 'config.json'
+            if local_config.exists():
+                return local_config
+            return Path.home() / '.knowledge_base_lecturer' / 'config.json'
+
+        return Path(__file__).parent.parent / 'config.json'
 
     def _normalize_path(self, path_value: Optional[str]) -> Optional[str]:
         if not path_value:
@@ -58,18 +80,18 @@ class PathHandler:
             except (json.JSONDecodeError, IOError):
                 pass
 
-        env_repo = os.getenv('OBSIDIAN_REPO')
+        env_repo = os.getenv('KNOWLEDGE_BASE')
         env_output = os.getenv('OUTPUT_DIR')
         if env_repo:
-            config['obsidian_repo'] = env_repo
+            config['knowledge_base'] = env_repo
         if env_output:
             config['output_dir'] = env_output
 
-        config['obsidian_repo'] = self._normalize_path(config.get('obsidian_repo'))
+        config['knowledge_base'] = self._normalize_path(config.get('knowledge_base'))
         config['output_dir'] = self._normalize_path(config.get('output_dir'))
 
-        if config.get('obsidian_repo') and not Path(config['obsidian_repo']).exists():
-            config['obsidian_repo'] = self._normalize_path(self.default_config['obsidian_repo'])
+        if config.get('knowledge_base') and not Path(config['knowledge_base']).exists():
+            config['knowledge_base'] = self._normalize_path(self.default_config['knowledge_base'])
 
         if not config.get('output_dir'):
             config['output_dir'] = self._normalize_path(self.default_config['output_dir'])
@@ -86,6 +108,7 @@ class PathHandler:
             bool: 保存是否成功
         """
         try:
+            self.config_file.parent.mkdir(parents=True, exist_ok=True)
             with open(self.config_file, 'w', encoding='utf-8') as f:
                 json.dump(config, f, indent=2, ensure_ascii=False)
             return True
@@ -103,7 +126,7 @@ class PathHandler:
             bool: 更新是否成功
         """
         config = self.load_config()
-        if key in {'obsidian_repo', 'output_dir'}:
+        if key in {'knowledge_base', 'obsidian_repo', 'output_dir'}:
             value = self._normalize_path(value)
         config[key] = value
         return self.save_config(config)

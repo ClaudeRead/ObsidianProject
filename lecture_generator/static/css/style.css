@@ -31,6 +31,49 @@ body {
     min-height: 100vh;
 }
 
+.icon-sprite {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+}
+
+.icon {
+    width: 1em;
+    height: 1em;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+.icon-fill {
+    fill: currentColor;
+    stroke: none;
+}
+
+.icon-lg {
+    width: 3rem;
+    height: 3rem;
+    margin-bottom: 20px;
+}
+
+.icon-muted {
+    color: #cbd5e0;
+}
+
+.icon-spin {
+    animation: icon-spin 1s linear infinite;
+}
+
+@keyframes icon-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
 /* ===== 布局容器 ===== */
 .container {
     max-width: 1920px;
@@ -60,8 +103,9 @@ body {
     gap: 15px;
 }
 
-.logo i {
-    font-size: 2rem;
+.logo .icon {
+    width: 2rem;
+    height: 2rem;
 }
 
 .logo h1 {
@@ -234,9 +278,9 @@ body {
     background: #f1f5f9;
 }
 
-.tree-header i.fa-caret-right,
-.tree-header i.fa-caret-down {
+.tree-header .icon {
     width: 16px;
+    height: 16px;
     color: var(--text-muted);
 }
 
@@ -323,7 +367,7 @@ body {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
-.selected-item i.fa-file-alt {
+.selected-item .icon {
     color: var(--primary-color);
 }
 

@@ -1,20 +1,20 @@
-# Obsidian 讲义生成器
+# 知识库讲义生成器
 
-一个简单而强大的Web应用程序，用于从Obsidian仓库生成自定义讲义。用户只需维护Obsidian仓库，就可以在Web界面上根据大纲选取内容，控制是否显示【解析】或【注意】中的内容，最后生成属于自己的讲义。
+一个简单而强大的Web应用程序，用于从任何知识库（包含Markdown文件的目录）生成自定义讲义。用户只需维护知识库，就可以在Web界面上根据大纲选取内容，控制是否显示【解析】或【注意】中的内容，最后生成属于自己的讲义。
 
 ## 🎯 项目特点
 
-- **代码最少化**：精简的Python代码，易于理解和维护
 - **前后端统一**：使用Python Flask框架，前后端一体化
-- **配置简单**：开箱即用，只需配置Obsidian路径
+- **配置简单**：开箱即用，只需配置知识库路径
 - **用户体验优秀**：直观的Web界面，实时预览功能
 - **开发维护简单**：清晰的代码结构，易于扩展
 - **多系统适配**：支持 Windows / Linux / macOS，路径与配置跨平台一致
 
+
 ## ✨ 核心功能
 
 ### 📁 文件管理
-- 可视化浏览Obsidian仓库目录结构
+- 可视化浏览知识库目录结构
 - 支持文件夹展开/折叠
 - 文件多选和批量操作
 
@@ -31,32 +31,32 @@
 
 ## 🚀 快速开始
 
-### 手动安装
+### 方法二：手动安装
 
 1. **安装依赖**
    ```bash
-   pip install -r requirements.txt
+   pip install -r lecture_generator/requirements.txt
    ```
 
 2. **检查配置**
-   - `config.json` 使用相对路径，可在 Windows / Linux / macOS 通用
-   - 你也可以用环境变量覆盖：`OBSIDIAN_REPO` 和 `OUTPUT_DIR`
+   - `lecture_generator/config.json` 使用相对路径，可在 Windows / Linux / macOS 通用
+   - 你也可以用环境变量覆盖：`KNOWLEDGE_BASE` 和 `OUTPUT_DIR`
 
 3. **启动应用**
    ```bash
-   python run.py
+   python main.py
    ```
 
    **Linux/macOS 示例（使用环境变量覆盖路径）**
    ```bash
-   export OBSIDIAN_REPO="/path/to/obsidian_repo"
+   export KNOWLEDGE_BASE="/path/to/knowledge_base"
    export OUTPUT_DIR="/path/to/output"
-   python run.py
+   python main.py
    ```
 
    **Linux/macOS 一行启动**
    ```bash
-   OBSIDIAN_REPO="/path/to/obsidian_repo" OUTPUT_DIR="/path/to/output" python run.py
+   KNOWLEDGE_BASE="/path/to/knowledge_base" OUTPUT_DIR="/path/to/output" python main.py
    ```
 
 4. **访问界面**
@@ -72,12 +72,13 @@
 ## 🗂️ 项目结构
 
 ```
+main.py                   # 主入口文件
 run.py                    # 启动脚本
+run_linux.sh              # Linux启动脚本
 lecture_generator/
 ├── app.py                 # 主应用程序（Flask）
 ├── config.json            # 配置文件
 ├── requirements.txt       # Python依赖
-├── README.md              # 项目说明
 ├── core/                  # 核心模块
 │   ├── md_parser.py        # Markdown解析
 │   └── path_handler.py     # 配置与路径处理
@@ -85,9 +86,12 @@ lecture_generator/
 │   └── index.html         # 主界面
 ├── static/                # 静态资源
 │   ├── css/
-│   │   └── style.css      # 样式表
+│   │   ├── style.css      # 样式表
+│   │   └── all.min.css    # Font Awesome 图标
 │   └── js/
-│       └── main.js        # 前端逻辑
+│       ├── main.js        # 前端逻辑
+│       ├── marked.min.js  # Markdown解析
+│       └── purify.min.js  # HTML净化
 └── output/                # 生成的讲义
 ```
 
@@ -102,18 +106,18 @@ lecture_generator/
 
 ## 🔧 配置说明
 
-主要配置在 `config.json` 文件中：
+主要配置在 `lecture_generator/config.json` 文件中：
 
 ```json
 {
-   "obsidian_repo": "../obsidian_repo",
+   "knowledge_base": "../knowledge_base",
    "output_dir": "./output",
    "markdown_extensions": [".md", ".markdown"]
 }
 
 可选环境变量覆盖：
 
-- `OBSIDIAN_REPO`：Obsidian仓库绝对路径或相对路径
+- `KNOWLEDGE_BASE`：知识库绝对路径或相对路径
 - `OUTPUT_DIR`：输出目录绝对路径或相对路径
 ```
 
@@ -124,17 +128,17 @@ lecture_generator/
 1. **依赖安装失败**
    ```bash
    pip install --upgrade pip
-   pip install -r requirements.txt
+   pip install -r lecture_generator/requirements.txt
    ```
 
 2. **端口被占用**
    修改启动命令中的端口或在 `config.json` 中添加 `port`
 
-3. **无法找到Obsidian仓库**
-   检查 `config.json` 中的 `obsidian_repo` 是否正确，或使用 `OBSIDIAN_REPO` 环境变量覆盖
+3. **无法找到知识库**
+   检查 `config.json` 中的 `knowledge_base` 是否正确，或使用 `KNOWLEDGE_BASE` 环境变量覆盖
 
 4. **中文字符乱码**
-   确保Obsidian文件使用UTF-8编码保存
+   确保知识库文件使用UTF-8编码保存
 
 ## 🤝 贡献指南
 
@@ -156,6 +160,6 @@ lecture_generator/
 
 ---
 
-**开始使用吧！打开您的Obsidian仓库，生成专属讲义！** 🎉
+**开始使用吧！打开您的知识库，生成专属讲义！** 🎉
 
 *让知识整理变得更简单，让学习变得更高效*
