@@ -9,12 +9,13 @@ class LectureGeneratorApp {
         this.isLoading = false;
         this.previewTimer = null;
         this.generateOptions = {
-            showAnalysis: true,
-            showNotes: true,
+            includeTags: [],
             includeToc: true,
             format: 'html',
             filename: ''
         };
+        this.detectedTags = [];
+        this.tagSelectionTouched = false;
 
         // 初始化
         this.initElements();
@@ -95,8 +96,7 @@ class LectureGeneratorApp {
             // 生成选项对话框
             openGenerateModalBtn: document.getElementById('open-generate-modal'),
             generateModal: document.getElementById('generate-modal'),
-            modalShowAnalysis: document.getElementById('modal-show-analysis'),
-            modalShowNotes: document.getElementById('modal-show-notes'),
+            modalTagOptions: document.getElementById('modal-tag-options'),
             modalIncludeToc: document.getElementById('modal-include-toc'),
             modalFormat: document.getElementById('modal-format'),
             modalFilename: document.getElementById('modal-filename'),
@@ -585,11 +585,10 @@ class LectureGeneratorApp {
     }
 
     showGenerateModal() {
-        this.elements.modalShowAnalysis.checked = this.generateOptions.showAnalysis;
-        this.elements.modalShowNotes.checked = this.generateOptions.showNotes;
         this.elements.modalIncludeToc.checked = this.generateOptions.includeToc;
         this.elements.modalFormat.value = this.generateOptions.format;
         this.elements.modalFilename.value = this.generateOptions.filename || '';
+        this.renderTagOptions();
         this.elements.generateModal.style.display = 'flex';
     }
 
@@ -598,9 +597,9 @@ class LectureGeneratorApp {
     }
 
     confirmGenerate() {
+        this.generateOptions.includeTags = this.getSelectedTags();
         this.generateOptions = {
-            showAnalysis: this.elements.modalShowAnalysis.checked,
-            showNotes: this.elements.modalShowNotes.checked,
+            includeTags: this.generateOptions.includeTags,
             includeToc: this.elements.modalIncludeToc.checked,
             format: this.elements.modalFormat.value,
             filename: this.elements.modalFilename.value.trim()
@@ -608,6 +607,140 @@ class LectureGeneratorApp {
         this.updateStatusPills();
         this.hideGenerateModal();
         this.generateLecture();
+    }
+
+    buildPreviewPayload() {
+        const payload = {
+            file_paths: this.selectedFiles.map(item => item.path)
+        };
+
+        if (this.tagSelectionTouched) {
+            payload.include_tags = this.generateOptions.includeTags || [];
+        } else if (this.generateOptions.includeTags && this.generateOptions.includeTags.length > 0) {
+            payload.include_tags = this.generateOptions.includeTags;
+        }
+
+        return payload;
+    }
+
+    syncDetectedTags(tags) {
+        if (!Array.isArray(tags)) {
+            return;
+        }
+
+        const previousDetected = new Set(this.detectedTags || []);
+        const normalized = [];
+        const seen = new Set();
+        tags.forEach(tag => {
+            if (typeof tag !== 'string') {
+                return;
+            }
+            const trimmed = tag.trim();
+            if (!trimmed || seen.has(trimmed)) {
+                return;
+            }
+            normalized.push(trimmed);
+            seen.add(trimmed);
+        });
+
+        this.detectedTags = normalized;
+
+        if (normalized.length === 0) {
+            this.generateOptions.includeTags = [];
+            this.renderTagOptions();
+            return;
+        }
+
+        const selected = new Set(this.generateOptions.includeTags || []);
+        const updated = [];
+
+        if (selected.size === 0) {
+            if (this.tagSelectionTouched) {
+                this.generateOptions.includeTags = [];
+                this.renderTagOptions();
+                return;
+            }
+            normalized.forEach(tag => updated.push(tag));
+        } else {
+            normalized.forEach(tag => {
+                if (selected.has(tag)) {
+                    updated.push(tag);
+                    return;
+                }
+                if (!previousDetected.has(tag)) {
+                    updated.push(tag);
+                }
+            });
+        }
+
+        this.generateOptions.includeTags = updated;
+        this.renderTagOptions();
+    }
+
+    renderTagOptions() {
+        const container = this.elements.modalTagOptions;
+        if (!container) {
+            return;
+        }
+
+        container.innerHTML = '';
+
+        if (!this.detectedTags || this.detectedTags.length === 0) {
+            const empty = document.createElement('div');
+            empty.className = 'tag-empty';
+            empty.textContent = '暂无可选择的标签内容';
+            container.appendChild(empty);
+            return;
+        }
+
+        const selected = new Set(this.generateOptions.includeTags || []);
+
+        this.detectedTags.forEach(tag => {
+            const label = document.createElement('label');
+            label.className = 'tag-option';
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.checked = selected.has(tag);
+            checkbox.dataset.tag = tag;
+            checkbox.addEventListener('change', () => {
+                this.updateTagSelection(tag, checkbox.checked);
+            });
+
+            const text = document.createElement('span');
+            text.textContent = `包含${tag}内容`;
+
+            label.appendChild(checkbox);
+            label.appendChild(text);
+            container.appendChild(label);
+        });
+    }
+
+    updateTagSelection(tag, isChecked) {
+        const next = new Set(this.generateOptions.includeTags || []);
+        if (isChecked) {
+            next.add(tag);
+        } else {
+            next.delete(tag);
+        }
+        this.tagSelectionTouched = true;
+        this.generateOptions.includeTags = Array.from(next);
+        this.schedulePreview();
+    }
+
+    getSelectedTags() {
+        const container = this.elements.modalTagOptions;
+        if (!container) {
+            return this.generateOptions.includeTags || [];
+        }
+
+        const tags = [];
+        container.querySelectorAll('input[type="checkbox"][data-tag]').forEach(input => {
+            if (input.checked) {
+                tags.push(input.dataset.tag);
+            }
+        });
+        return tags;
     }
 
     /**
@@ -643,17 +776,14 @@ class LectureGeneratorApp {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    file_paths: this.selectedFiles.map(item => item.path),
-                    show_analysis: this.generateOptions.showAnalysis,
-                    show_notes: this.generateOptions.showNotes
-                })
+                body: JSON.stringify(this.buildPreviewPayload())
             });
 
             const data = await response.json();
 
             if (data.success) {
                 this.displayPreview(data.preview);
+                this.syncDetectedTags(data.detected_tags || []);
                 if (!silent) {
                     this.showMessage(`预览更新成功，包含 ${data.file_count} 个文件`, 'success');
                 }
@@ -743,8 +873,7 @@ class LectureGeneratorApp {
                 },
                 body: JSON.stringify({
                     file_paths: this.selectedFiles.map(item => item.path),
-                    show_analysis: this.generateOptions.showAnalysis,
-                    show_notes: this.generateOptions.showNotes,
+                    include_tags: this.generateOptions.includeTags,
                     include_toc: this.generateOptions.includeToc,
                     format: this.generateOptions.format,
                     filename: this.generateOptions.filename

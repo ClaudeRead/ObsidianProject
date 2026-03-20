@@ -8,7 +8,7 @@ import hashlib
 import re
 from urllib.parse import quote
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 
 
 class MarkdownParser:
@@ -20,7 +20,8 @@ class MarkdownParser:
 
     def parse_file(self, file_path: str, filename: Optional[str] = None,
                    show_analysis: bool = True, show_notes: bool = True,
-                   obsidian_root: Optional[str] = None) -> Dict[str, str]:
+                   obsidian_root: Optional[str] = None,
+                   include_tags: Optional[List[str]] = None) -> Dict[str, object]:
         file_path_obj = Path(file_path)
 
         if not file_path_obj.exists():
@@ -42,7 +43,8 @@ class MarkdownParser:
                 file_dir,
                 show_analysis,
                 show_notes,
-                obsidian_root=obsidian_root
+                obsidian_root=obsidian_root,
+                include_tags=include_tags
             )
 
         except Exception as e:
@@ -50,17 +52,26 @@ class MarkdownParser:
 
     def parse_content(self, content: str, filename: str, file_dir: str,
                       show_analysis: bool = True, show_notes: bool = True,
-                      obsidian_root: Optional[str] = None) -> Dict[str, str]:
+                      obsidian_root: Optional[str] = None,
+                      include_tags: Optional[List[str]] = None) -> Dict[str, object]:
         parsed_content = content
 
         if self.clean_content:
             parsed_content = self._clean_content(parsed_content, filename, file_dir, obsidian_root)
 
-        if not show_analysis:
-            parsed_content = self._remove_section(parsed_content, '【解析】')
+        detected_tags = self.extract_section_tags(parsed_content)
 
-        if not show_notes:
-            parsed_content = self._remove_section(parsed_content, '【注意】')
+        if include_tags is not None:
+            include_set = set(include_tags)
+            for tag in detected_tags:
+                if tag not in include_set:
+                    parsed_content = self._remove_section(parsed_content, tag)
+        else:
+            if not show_analysis:
+                parsed_content = self._remove_section(parsed_content, '【解析】')
+
+            if not show_notes:
+                parsed_content = self._remove_section(parsed_content, '【注意】')
 
         h1_title = self._extract_first_h1_title(parsed_content)
         if not h1_title:
@@ -71,8 +82,26 @@ class MarkdownParser:
         return {
             'parsed_content': parsed_content,
             'h1_title': h1_title,
-            'content_hash': content_hash
+            'content_hash': content_hash,
+            'detected_tags': detected_tags
         }
+
+    def extract_section_tags(self, content: str) -> List[str]:
+        if not content:
+            return []
+
+        tag_pattern = re.compile(r'【[^】\n]+】')
+        matches = tag_pattern.findall(content)
+
+        seen = set()
+        tags = []
+        for tag in matches:
+            if tag in seen:
+                continue
+            tags.append(tag)
+            seen.add(tag)
+
+        return tags
 
     def _extract_first_h1_title(self, content: str) -> Optional[str]:
         h1_pattern = re.compile(r'^#\s+(.+)$', re.MULTILINE)

@@ -7,6 +7,7 @@ Obsidian 讲义生成器 - 优化版主应用程序
 
 import os
 import re
+from typing import List, Optional
 from pathlib import Path
 from flask import Flask, render_template, request, jsonify, send_file, abort
 
@@ -19,6 +20,33 @@ app = Flask(__name__)
 
 # 初始化模块
 md_parser = MarkdownParser(clean_content=True)
+
+def _normalize_include_tags(raw_value: object) -> Optional[List[str]]:
+    if not isinstance(raw_value, list):
+        return None
+
+    cleaned = []
+    seen = set()
+    for item in raw_value:
+        if not isinstance(item, str):
+            continue
+        tag = item.strip()
+        if not tag or tag in seen:
+            continue
+        cleaned.append(tag)
+        seen.add(tag)
+
+    return cleaned
+
+def _merge_detected_tags(existing: List[str], new_tags: List[str]) -> List[str]:
+    seen = set(existing)
+    merged = list(existing)
+    for tag in new_tags:
+        if tag in seen:
+            continue
+        merged.append(tag)
+        seen.add(tag)
+    return merged
 
 def _is_within_base_path(base_path, target_path):
     try:
@@ -484,10 +512,11 @@ def _sanitize_html(html_content):
 @app.route('/api/lecture/preview', methods=['POST'])
 def preview_lecture():
     """预览讲义内容"""
-    data = request.json
+    data = request.json or {}
     file_paths = data.get('file_paths', [])
     show_analysis = data.get('show_analysis', True)
     show_notes = data.get('show_notes', True)
+    include_tags = _normalize_include_tags(data.get('include_tags'))
 
     if not file_paths:
         return jsonify({'success': False, 'error': '未选择任何文件'}), 400
@@ -496,6 +525,7 @@ def preview_lecture():
         config = get_config()
         knowledge_base_path = config.get('knowledge_base')
         files_data = []
+        detected_tags = []
 
         for file_path in file_paths:
             full_path = os.path.join(knowledge_base_path, file_path)
@@ -505,10 +535,15 @@ def preview_lecture():
                 full_path,
                 show_analysis=show_analysis,
                 show_notes=show_notes,
-                obsidian_root=knowledge_base_path
+                obsidian_root=knowledge_base_path,
+                include_tags=include_tags
             )
 
             if 'error' not in result:
+                detected_tags = _merge_detected_tags(
+                    detected_tags,
+                    result.get('detected_tags', [])
+                )
                 files_data.append({
                     'title': result.get('h1_title', os.path.basename(file_path).replace('.md', '')),
                     'path': file_path,
@@ -530,7 +565,8 @@ def preview_lecture():
             'preview': concat_result['lecture_content'],
             'files_processed': concat_result['files_processed'],
             'files_skipped': concat_result['files_skipped'],
-            'file_count': len(files_data)
+            'file_count': len(files_data),
+            'detected_tags': detected_tags
         })
 
     except Exception as e:
@@ -539,10 +575,11 @@ def preview_lecture():
 @app.route('/api/lecture/generate', methods=['POST'])
 def generate_lecture():
     """生成讲义文件"""
-    data = request.json
+    data = request.json or {}
     file_paths = data.get('file_paths', [])
     show_analysis = data.get('show_analysis', True)
     show_notes = data.get('show_notes', True)
+    include_tags = _normalize_include_tags(data.get('include_tags'))
     include_toc = data.get('include_toc', True)
     format = data.get('format', 'html')
     filename_input = data.get('filename', '').strip() if data else ''
@@ -563,7 +600,8 @@ def generate_lecture():
                 full_path,
                 show_analysis=show_analysis,
                 show_notes=show_notes,
-                obsidian_root=knowledge_base_path
+                obsidian_root=knowledge_base_path,
+                include_tags=include_tags
             )
 
             if 'error' not in result:
