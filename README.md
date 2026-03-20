@@ -44,19 +44,7 @@
    ```bash
    python main.py
    ```
-
-   **Linux/macOS 示例（使用环境变量覆盖路径）**
-   ```bash
-   export KNOWLEDGE_BASE="/path/to/knowledge_base"
-   export OUTPUT_DIR="/path/to/output"
-   python main.py
-   ```
-
-   **Linux/macOS 一行启动**
-   ```bash
-   KNOWLEDGE_BASE="/path/to/knowledge_base" OUTPUT_DIR="/path/to/output" python main.py
-   ```
-
+   
 4. **访问界面**
    打开浏览器访问：http://localhost:5000
 
