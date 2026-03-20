@@ -81,7 +81,7 @@ def get_directory():
         if not os.path.exists(knowledge_base_path):
             return jsonify({
                 'success': False,
-                'error': f'知识库路径不存在: {knowledge_base_path}'
+                'error': '知识库路径不存在'
             }), 404
 
         # 扫描目录结构
@@ -96,7 +96,7 @@ def get_directory():
     except Exception as e:
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': '获取目录结构失败'
         }), 500
 
 @app.route('/api/search', methods=['POST'])
@@ -499,14 +499,24 @@ def _convert_markdown_to_html(markdown_content, image_url_transform=None):
 
         return simple_html
 
+_DANGEROUS_TAGS = r'(iframe|object|embed|applet|base|form|meta|link)'
+
 def _sanitize_html(html_content):
     """最小化清理HTML，移除脚本与危险属性"""
     if not html_content:
         return html_content
 
+    # 移除 <script> 标签及其内容
     cleaned = re.sub(r'<\s*script[^>]*>.*?<\s*/\s*script\s*>', '', html_content, flags=re.IGNORECASE | re.DOTALL)
-    cleaned = re.sub(r'\son\w+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)', '', cleaned, flags=re.IGNORECASE)
-    cleaned = re.sub(r'\s(href|src)\s*=\s*(["\'])\s*javascript:[^\2]*\2', '', cleaned, flags=re.IGNORECASE)
+    # 移除其他可执行/嵌入内容标签（带内容的配对标签和自闭合标签）
+    cleaned = re.sub(rf'<\s*{_DANGEROUS_TAGS}[^>]*>.*?<\s*/\s*\1\s*>', '', cleaned, flags=re.IGNORECASE | re.DOTALL)
+    cleaned = re.sub(rf'<\s*{_DANGEROUS_TAGS}[^>]*/?\s*>', '', cleaned, flags=re.IGNORECASE)
+    # 移除内联事件处理器属性（如 onclick、onload 等）
+    cleaned = re.sub(r'\s+on\w+\s*=\s*(?:"[^"]*"|\'[^\']*\'|[^\s>]+)', '', cleaned, flags=re.IGNORECASE)
+    # 移除 href/src 中的 javascript: URI
+    cleaned = re.sub(r'''\s+(href|src)\s*=\s*(['"])\s*javascript:.*?\2''', '', cleaned, flags=re.IGNORECASE | re.DOTALL)
+    # 移除未加引号的 javascript: URI
+    cleaned = re.sub(r'\s+(href|src)\s*=\s*javascript:[^\s>]+', '', cleaned, flags=re.IGNORECASE)
     return cleaned
 
 @app.route('/api/lecture/preview', methods=['POST'])
@@ -529,6 +539,10 @@ def preview_lecture():
 
         for file_path in file_paths:
             full_path = os.path.join(knowledge_base_path, file_path)
+
+            # 安全检查：确保文件在知识库目录范围内，防止路径穿越攻击
+            if not _is_within_base_path(knowledge_base_path, full_path):
+                continue
 
             # 解析文件
             result = md_parser.parse_file(
@@ -570,7 +584,7 @@ def preview_lecture():
         })
 
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': '预览生成失败'}), 500
 
 @app.route('/api/lecture/generate', methods=['POST'])
 def generate_lecture():
@@ -594,6 +608,10 @@ def generate_lecture():
 
         for file_path in file_paths:
             full_path = os.path.join(knowledge_base_path, file_path)
+
+            # 安全检查：确保文件在知识库目录范围内，防止路径穿越攻击
+            if not _is_within_base_path(knowledge_base_path, full_path):
+                continue
 
             # 解析文件
             result = md_parser.parse_file(
@@ -670,7 +688,7 @@ def generate_lecture():
         })
 
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': '讲义生成失败'}), 500
 
 @app.route('/api/lecture/download/<path:filename>', methods=['GET'])
 def download_lecture(filename):
@@ -679,21 +697,21 @@ def download_lecture(filename):
     output_dir = config.get('output_dir')
     file_path = Path(output_dir) / filename
 
-    if not file_path.exists():
-        abort(404, description="文件不存在")
-
-    # 安全检查：确保文件在输出目录中
+    # 安全检查：先确保文件在输出目录中，防止路径穿越攻击
     if not _is_within_base_path(output_dir, file_path):
         abort(403, description="访问被拒绝")
+
+    if not file_path.exists():
+        abort(404, description="文件不存在")
 
     try:
         return send_file(
             str(file_path),
             as_attachment=True,
-            download_name=filename
+            download_name=file_path.name
         )
     except Exception as e:
-        abort(500, description=f"下载失败: {str(e)}")
+        abort(500, description="下载失败")
 
 @app.route('/api/config', methods=['GET'])
 def get_config_api():
@@ -719,7 +737,7 @@ def validate_config():
         })
 
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': '配置验证失败'}), 500
 
 @app.route('/api/config/browse', methods=['POST'])
 def browse_config_path():
@@ -739,7 +757,7 @@ def browse_config_path():
 
         return jsonify({'success': True, 'path': selected})
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': '目录选择失败'}), 500
 
 @app.route('/api/config/update', methods=['POST'])
 def update_config_api():
@@ -762,7 +780,7 @@ def update_config_api():
             return jsonify({'success': False, 'error': '保存配置失败'}), 500
 
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': '配置更新失败'}), 500
 
 @app.errorhandler(404)
 def not_found(error):
