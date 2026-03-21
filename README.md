@@ -42,7 +42,7 @@
 
 3. **启动应用**
    ```bash
-   python main.py
+   python run.py
    ```
    
 4. **访问界面**
